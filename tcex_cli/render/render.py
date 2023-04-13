@@ -19,17 +19,33 @@ class Render(RenderUtil):
     """TcEx Framework Module"""
 
     @classmethod
-    def progress_bar(cls) -> Progress:
+    def progress_bar_deps(cls) -> Progress:
         """Return a progress bar."""
-        bar_column = BarColumn(
+        return Progress(
+            cls.progress_text_column(), cls.progress_bar_column(), expand=True, transient=True
+        )
+
+    @classmethod
+    def progress_bar_download(cls) -> Progress:
+        """Return a progress bar."""
+        return Progress(cls.progress_text_column(), cls.progress_bar_column(), expand=True)
+
+    @classmethod
+    def progress_bar_column(cls) -> BarColumn:
+        """Return a progress bar column."""
+        return BarColumn(
             bar_width=None,
             complete_style=f'{cls.accent}',
             finished_style=f'{cls.accent}',
+            pulse_style='dodger_blue2',
             style=f'dim {cls.accent}',
             table_column=Column(ratio=2),
         )
-        text_column = TextColumn('{task.description}', table_column=Column(ratio=1))
-        return Progress(text_column, bar_column, expand=True)
+
+    @classmethod
+    def progress_text_column(cls) -> TextColumn:
+        """Return a progress bar column."""
+        return TextColumn('{task.description}', table_column=Column(ratio=1))
 
     @classmethod
     def table_package_summary(cls, title: str, summary_data: AppMetadataModel):

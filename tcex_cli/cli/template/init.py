@@ -64,7 +64,7 @@ def command(
     try:
         Render.panel.info('Installing template files')
         downloads = cli.init(branch, template_name, template_type, app_builder)
-        progress = Render.progress_bar()
+        progress = Render.progress_bar_download()
         with progress:
             for item in progress.track(
                 downloads,

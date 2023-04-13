@@ -61,7 +61,7 @@ def command(
         if not downloads:
             Render.panel.info('No files to update.')
         else:
-            progress = Render.progress_bar()
+            progress = Render.progress_bar_download()
             with progress:
                 for item in progress.track(
                     downloads,

@@ -192,6 +192,24 @@ class DepsCli(CliABC):
         """Return True if requirements.lock exists."""
         return Path('requirements.lock').exists()
 
+    def download_deps(self, exe_command: list[str]):
+        """Download the dependencies (run pip)."""
+        # recommended -> https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
+        p = subprocess.Popen(  # pylint: disable=consider-using-with
+            exe_command,
+            shell=False,  # nosec
+            # stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=self.env,
+        )
+        _, err = p.communicate()  # pylint: disable=unused-variable
+
+        if p.returncode != 0:
+            # display error
+            err = err.decode('utf-8')
+            Render.panel.failure(f'Failure: {err}')
+
     def install_deps(self):
         """Install Required Libraries using pip."""
         error = False  # track if any errors have occurred and if so, don't create lock file.
@@ -217,21 +235,13 @@ class DepsCli(CliABC):
         # display command setting
         self.output.append(KeyValueModel(key='Pip Command', value=f'''{' '.join(exe_command)}'''))
 
-        # recommended -> https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
-        p = subprocess.Popen(  # pylint: disable=consider-using-with
-            exe_command,
-            shell=False,  # nosec
-            # stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=self.env,
-        )
-        _, err = p.communicate()  # pylint: disable=unused-variable
+        if self.app_builder is False:
+            with Render.progress_bar_deps() as progress:
+                progress.add_task('Downloading Dependencies', total=None)
 
-        if p.returncode != 0:
-            # display error
-            err = err.decode('utf-8')
-            Render.panel.failure(f'Failure: {err}')
+                self.download_deps(exe_command)
+        else:
+            self.download_deps(exe_command)
 
         if self.requirements_fqfn_branch:
             # remove temp requirements.txt file
