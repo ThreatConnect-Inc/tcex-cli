@@ -28,7 +28,6 @@ class DepsCli(CliABC):
         self,
         app_builder: bool,
         branch: str,
-        dev: bool,
         no_cache_dir: bool,
         pre: bool,
         proxy_host: str | None,
@@ -40,7 +39,6 @@ class DepsCli(CliABC):
         super().__init__()
         self.app_builder = app_builder
         self.branch = branch
-        self.dev = dev
         self.no_cache_dir = no_cache_dir
         self.pre = pre
         self.proxy_host = proxy_host
@@ -56,22 +54,23 @@ class DepsCli(CliABC):
             self.proxy_pass = parsed_proxy_url.password
 
         # properties
+        self.deps_dir_tests = self.app_path / 'deps_tests'
         self.env = self._env
         self.latest_version = None
         self.log = _logger
         self.output: list[KeyValueModel] = []
         self.proxy_enabled = False
         self.requirements_fqfn_branch = None
+        self.requirements_lock = self.app_path / 'requirements.lock'
+        self.requirements_lock_tests = self.app_path / 'tests' / 'requirements.lock'
+        self.requirements_txt = self.app_path / 'requirements.txt'
+        self.requirements_txt_tests = self.app_path / 'tests' / 'requirements.txt'
 
         # update tcex.json
         self.app.tj.update.multiple()
 
-    def _build_command(self) -> list[str]:
+    def _build_command(self, deps_dir: Path, requirements_file: Path) -> list[str]:
         """Build the pip command for installing dependencies."""
-        # support temp (branch) requirements.txt file
-        _requirements_fqfn = str(self.requirements_fqfn)
-        if self.requirements_fqfn_branch:
-            _requirements_fqfn = str(self.requirements_fqfn_branch)
 
         exe_command = [
             str(self.python_executable),
@@ -79,11 +78,11 @@ class DepsCli(CliABC):
             'pip',
             'install',
             '-r',
-            _requirements_fqfn,
+            str(requirements_file),
             '--ignore-installed',
             '--quiet',
             '--target',
-            self.deps_dir.name,
+            deps_dir.name,
         ]
         if self.no_cache_dir:
             exe_command.append('--no-cache-dir')
@@ -113,9 +112,9 @@ class DepsCli(CliABC):
 
         return _env
 
-    def _remove_previous(self):
+    def _remove_previous(self, path: Path):
         """Remove previous deps directory recursively."""
-        shutil.rmtree(str(self.deps_dir), ignore_errors=True)
+        shutil.rmtree(str(path), ignore_errors=True)
 
     def configure_proxy(self):
         """Configure proxy settings using environment variables."""
@@ -149,48 +148,43 @@ class DepsCli(CliABC):
                 )
             )
 
-    def create_requirements_lock(self):
+    def create_requirements_lock(self, contents: str, requirements_file: Path):
         """Create the requirements.lock file."""
-        with Path('requirements.lock').open(mode='w', encoding='utf-8') as fh:
+        with requirements_file.open(mode='w', encoding='utf-8') as fh:
             # add lock file creation to output
-            self.output.append(KeyValueModel(key='Lock File Created', value='requirements.lock'))
-            fh.write(self.requirements_lock)
+            self.output.append(KeyValueModel(key='Lock File Created', value=str(requirements_file)))
+            fh.write(contents)
             fh.write('')
 
-    def create_temp_requirements(self):
-        """Create a temporary requirements.txt.
+    # def create_temp_requirements(self):
+    #     """Create a temporary requirements.txt.
 
-        This allows testing against a git branch instead of pulling from pypi.
-        """
-        _requirements_fqfn = Path('requirements.txt')
-        if self.has_requirements_lock:
-            _requirements_fqfn = Path('requirements.lock')
+    #     This allows testing against a git branch instead of pulling from pypi.
+    #     """
+    #     _requirements_fqfn = Path('requirements.txt')
+    #     if self.has_requirements_lock:
+    #         _requirements_fqfn = Path('requirements.lock')
 
-        # Replace tcex version with develop branch of tcex
-        with _requirements_fqfn.open(encoding='utf-8') as fh:
-            current_requirements = fh.read().strip().split('\n')
+    #     # Replace tcex version with develop branch of tcex
+    #     with _requirements_fqfn.open(encoding='utf-8') as fh:
+    #         current_requirements = fh.read().strip().split('\n')
 
-        self.requirements_fqfn_branch = Path(f'temp-{_requirements_fqfn}')
-        with self.requirements_fqfn_branch.open(mode='w', encoding='utf-8') as fh:
-            requirements = []
-            for line in current_requirements:
-                if not line:
-                    continue
-                if line.startswith('tcex'):
-                    line = (
-                        'git+https://github.com/ThreatConnect-Inc/tcex.git@'
-                        f'{self.branch}#egg=tcex'
-                    )
-                requirements.append(line)
-            fh.write('\n'.join(requirements))
+    #     self.requirements_fqfn_branch = Path(f'temp-{_requirements_fqfn}')
+    #     with self.requirements_fqfn_branch.open(mode='w', encoding='utf-8') as fh:
+    #         requirements = []
+    #         for line in current_requirements:
+    #             if not line:
+    #                 continue
+    #             if line.startswith('tcex'):
+    #                 line = (
+    #                     'git+https://github.com/ThreatConnect-Inc/tcex.git@'
+    #                     f'{self.branch}#egg=tcex'
+    #                 )
+    #             requirements.append(line)
+    #         fh.write('\n'.join(requirements))
 
-        # display branch setting
-        self.output.append(KeyValueModel(key='Using Branch', value=self.branch))
-
-    @property
-    def has_requirements_lock(self):
-        """Return True if requirements.lock exists."""
-        return Path('requirements.lock').exists()
+    #     # display branch setting
+    #     self.output.append(KeyValueModel(key='Using Branch', value=self.branch))
 
     def download_deps(self, exe_command: list[str]):
         """Download the dependencies (run pip)."""
@@ -218,14 +212,13 @@ class DepsCli(CliABC):
         if not self.requirements_fqfn.is_file():
             Render.panel.failure(f'A {self.requirements_fqfn} file is required to install modules.')
 
-        # update requirements_dev.txt file
-        self.update_requirements_dev_txt()
-
         # remove deps directory from previous runs
-        self._remove_previous()
+        self._remove_previous(self.deps_dir)
 
         # build the sub process command
-        exe_command = self._build_command()
+
+        # support temp (branch) requirements.txt file
+        exe_command = self._build_command(self.deps_dir, self.requirements_fqfn)
 
         # display tcex version
         self.output.append(
@@ -243,15 +236,47 @@ class DepsCli(CliABC):
         else:
             self.download_deps(exe_command)
 
-        if self.requirements_fqfn_branch:
-            # remove temp requirements.txt file
-            self.requirements_fqfn_branch.unlink()
+        # if self.requirements_fqfn_branch:
+        #     # remove temp requirements.txt file
+        #     self.requirements_fqfn_branch.unlink()
 
-        if self.has_requirements_lock is False:
+        if self.requirements_lock.exists() is False:
             if error:
                 Render.panel.warning('Not creating requirements.lock file due to errors.')
             else:
-                self.create_requirements_lock()
+                contents = self.requirements_lock_contents(self.deps_dir)
+                self.create_requirements_lock(contents, self.requirements_lock)
+
+    def install_deps_tests(self):
+        """Install tests dependencies."""
+        if self.requirements_txt_tests.exists():
+            error = False  # track if any errors have occurred and if so, don't create lock file.
+
+            # remove deps directory from previous runs
+            self._remove_previous(self.deps_dir_tests)
+
+            # build the sub process command
+            exe_command = self._build_command(self.deps_dir_tests, self.requirements_fqfn_tests)
+
+            # display command setting
+            self.output.append(
+                KeyValueModel(key='Tests Pip Command', value=f'''{' '.join(exe_command)}''')
+            )
+
+            if self.app_builder is False:
+                with Render.progress_bar_deps() as progress:
+                    progress.add_task('Downloading Tests Dependencies', total=None)
+
+                    self.download_deps(exe_command)
+
+            if self.requirements_lock_tests.exists() is False:
+                if error:
+                    Render.panel.warning(
+                        f'Not creating {self.requirements_fqfn_tests} file due to errors.'
+                    )
+                else:
+                    contents = self.requirements_lock_contents(self.deps_dir_tests)
+                    self.create_requirements_lock(contents, self.requirements_lock_tests)
 
     @cached_property
     def python_executable(self) -> Path:
@@ -260,14 +285,12 @@ class DepsCli(CliABC):
         return Path(tcex_python_path) / 'python' if tcex_python_path else Path(sys.executable)
 
     @cached_property
-    def requirements_fqfn(self):
+    def requirements_fqfn(self) -> Path:
         """Return the appropriate requirements.txt file."""
-        if self.dev:
-            _requirements_file = Path('requirements_dev.txt')
-        elif self.has_requirements_lock:
-            _requirements_file = Path('requirements.lock')
+        if self.requirements_lock.exists():
+            _requirements_file = self.requirements_lock
         else:
-            _requirements_file = Path('requirements.txt')
+            _requirements_file = self.requirements_txt
 
         # add deps directory to output
         self.output.append(KeyValueModel(key='Dependencies Directory', value=self.deps_dir.name))
@@ -276,22 +299,36 @@ class DepsCli(CliABC):
         self.output.append(
             KeyValueModel(
                 key='Requirement File',
-                value=f'[dark_orange]{str(_requirements_file)}[/dark_orange]',
+                value=f'[dark_orange]{str(_requirements_file.name)}[/dark_orange]',
             )
         )
         return _requirements_file
 
-    @property
-    def requirements_lock(self) -> str:
-        """Return python packages for requirements.txt."""
-        _requirements = self.requirements_lock_data()
-        # sort packages alphabetically
-        return '\n'.join(sorted(_requirements.splitlines()))
+    @cached_property
+    def requirements_fqfn_tests(self) -> Path:
+        """Return the appropriate requirements.txt file."""
+        if self.requirements_lock_tests.exists():
+            _requirements_file_tests = self.requirements_lock_tests
+        else:
+            _requirements_file_tests = self.requirements_txt_tests
 
-    def requirements_lock_data(self) -> str:
+        # add deps directory to output
+        self.output.append(
+            KeyValueModel(key='Tests Dependencies Directory', value=self.deps_dir_tests.name)
+        )
+
+        # add requirements file to output
+        self.output.append(
+            KeyValueModel(
+                key='Tests Requirement File',
+                value=f'[dark_orange]{str(_requirements_file_tests.name)}[/dark_orange]',
+            )
+        )
+        return _requirements_file_tests
+
+    def requirements_lock_contents(self, deps_dir: Path) -> str:
         """Return the Python packages for the provided directory."""
-        deps_dir_path = self.app_path / self.deps_dir
-        cmd = f'pip freeze --path "{deps_dir_path}"'
+        cmd = f'pip freeze --path "{deps_dir}"'
         self.log.debug(f'event=get-requirements-lock-data, cmd={cmd}')
         try:
             output = subprocess.run(  # pylint: disable=subprocess-run-check
@@ -304,7 +341,7 @@ class DepsCli(CliABC):
         if output.returncode != 0:
             self.log.error(f'event=pip-freeze, stderr="{output.stderr}"')
 
-        return output.stdout.decode('utf-8')
+        return '\n'.join(sorted(output.stdout.decode('utf-8').splitlines()))
 
     @property
     def target_python_version(self) -> Version | None:
@@ -329,20 +366,6 @@ class DepsCli(CliABC):
             self.log.error(f'event=get-python-version, error="{ex}"')
 
         return version
-
-    @staticmethod
-    def update_requirements_dev_txt():
-        """Update the requirements_dev.txt file to support lock file."""
-        if os.path.isfile('requirements_dev.txt'):
-            with open('requirements_dev.txt', mode='r+', encoding='utf-8') as fh:
-                _lines = ''
-                for line in fh.readlines():
-                    _lines += line.replace('requirements.txt', 'requirements.lock')
-
-                # write back
-                fh.seek(0)
-                fh.write(_lines)
-                fh.truncate()
 
     def validate_python_version(self):
         """Validate the python version."""

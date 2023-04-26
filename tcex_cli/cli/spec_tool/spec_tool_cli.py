@@ -43,7 +43,7 @@ class SpecToolCli(CliABC):
         """Validate that the app_spec.yml file exists."""
         if not self.asy.has_spec:
             Render.panel.failure(
-                f'No {self.asy.fqfn.name} file found.\nTry running `tcex spectool '
+                f'No {self.asy.fqfn.name} file found.\nTry running `tcex spec-tool '
                 f'--app-spec` first to generate the {self.asy.fqfn.name} specification file.'
             )
 

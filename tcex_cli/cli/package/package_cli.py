@@ -72,6 +72,7 @@ class PackageCli(CliABC):
             'artifacts',  # pytest in CI/CD
             'assets',  # pytest in BB Pipelines
             'cspell.json',  # cspell configuration file
+            'deps_tests',  # testing dependencies
             'local-*',  # log directory
             'log',  # log directory
             'JIRA.html',  # documentation file
@@ -93,7 +94,7 @@ class PackageCli(CliABC):
     @cached_property
     def build_fqpn(self) -> Path:
         """Return the fully qualified path name of the build directory."""
-        build_fqpn = Path(os.path.join(self.app_path, self.output_dir.name, 'build'))
+        build_fqpn = self.app_path / self.output_dir.name / 'build'
         build_fqpn.mkdir(exist_ok=True, parents=True)
         return build_fqpn
 
@@ -127,14 +128,15 @@ class PackageCli(CliABC):
         # copy project directory to temp location to use as template for multiple builds
         shutil.copytree(self.app_path, self.template_fqpn, False, ignore=self.exclude_files)
 
-        # !!! The name of the folder in the zip is the *key* for an App. This value must
-        # !!! remain consistent for the App to upgrade successfully.
+        # IMPORTANT:
+        # The name of the folder in the zip is the *key* for an App. This
+        # value must remain consistent for the App to upgrade successfully.
         app_name_version = (
             f'{self.app.tj.model.package.app_name}_{self.app.ij.model.package_version}'
         )
 
         # build app directory
-        app_path_fqpn = os.path.join(self.build_fqpn, app_name_version)
+        app_path_fqpn = self.build_fqpn / app_name_version
         if os.access(app_path_fqpn, os.W_OK):
             # cleanup any previous failed builds
             shutil.rmtree(app_path_fqpn)
@@ -164,7 +166,7 @@ class PackageCli(CliABC):
     @cached_property
     def template_fqpn(self) -> Path:
         """Return the fully qualified path name of the template directory."""
-        template_fqpn = Path(os.path.join(self.build_fqpn, 'template'))
+        template_fqpn = self.build_fqpn / 'template'
         if os.access(template_fqpn, os.W_OK):
             # cleanup any previous failed builds
             shutil.rmtree(template_fqpn)
@@ -179,7 +181,7 @@ class PackageCli(CliABC):
             tmp_path: The temp output path for the zip.
         """
         # zip build directory
-        zip_fqpn = Path(os.path.join(app_path, self.output_dir, app_name))
+        zip_fqpn = app_path / self.output_dir / app_name
 
         # create App package
         shutil.make_archive(str(zip_fqpn), format='zip', root_dir=tmp_path, base_dir=app_name)

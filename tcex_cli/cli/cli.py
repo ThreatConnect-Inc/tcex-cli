@@ -1,7 +1,9 @@
 """TcEx Framework Module"""
 
 # standard library
+import sys
 from importlib.metadata import version as get_version
+from pathlib import Path
 
 # third-party
 import typer
@@ -16,11 +18,20 @@ from tcex_cli.cli.validate import validate
 from tcex_cli.render.render import Render
 
 
+def update_system_path():
+    """Update the system path to ensure project modules and dependencies can be found."""
+    if Path('deps').is_dir():
+        sys.path.insert(0, 'deps')
+
+
 def version_callback(
     version: bool = typer.Option(False, '--version', help='Display the version and exit.')
 ):
     """Display the version and exit."""
     if version is True:
+        # update system path
+        update_system_path()
+
         version_data = {}
         # display the tcex version
         try:
@@ -55,8 +66,11 @@ app.command('validate')(validate.command)
 # add tcex-app-testing CLI command as `tcex test` if installed, this provides easy access
 # to create test cases. the alternative is to run `tcex-app-testing` CLI directly.
 try:
+    # update system path
+    update_system_path()
+
     # third-party
-    from tcex_app_testing.cli.cli import app as app_test
+    from tcex_app_testing.cli.cli import app as app_test  # type: ignore
 
     app.add_typer(
         app_test,

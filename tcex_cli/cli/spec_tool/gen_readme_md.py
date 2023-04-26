@@ -250,17 +250,18 @@ class GenReadmeMd(CliABC):
                 self._add_param_valid_values(readme_md, param)
 
         # add inputs and sections
-        self._add_inputs_title(readme_md)
+        if non_service_config:
+            self._add_inputs_title(readme_md)
 
-        for param in non_service_config:
-            # add param data
-            self._add_param(readme_md, param)
+            for param in non_service_config:
+                # add param data
+                self._add_param(readme_md, param)
 
-            # add param note data
-            self._add_param_note(readme_md, param)
+                # add param note data
+                self._add_param_note(readme_md, param)
 
-            # add param valid_values data
-            self._add_param_valid_values(readme_md, param)
+                # add param valid_values data
+                self._add_param_valid_values(readme_md, param)
 
         # add output data
         self._add_outputs(readme_md)
@@ -373,7 +374,7 @@ class GenReadmeMd(CliABC):
                 # add inputs for non action based sections
                 self._add_params_for_playbook_std_app(readme_md)
 
-        elif self.asy.model.is_organization_app or self.asy.model.is_trigger_app:
+        else:
             self._add_params_for_non_playbook_apps(readme_md)
 
         # add labels

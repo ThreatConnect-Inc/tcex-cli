@@ -44,6 +44,7 @@ class GenAppSpecYml(CliABC):
                 'programMain': self.app.ij.model.program_main,
                 'programVersion': str(self.app.ij.model.program_version),
                 'runtimeLevel': self.app.ij.model.runtime_level,
+                'sdkVersion': self.app.ij.model.sdk_version,
             }
         )
 
@@ -288,4 +289,4 @@ class GenAppSpecYml(CliABC):
         )
 
         # force order of keys
-        return self.asy.dict_to_yaml(self.asy.order_data(asy_data))
+        return self.asy.dict_to_yaml(asy_data)

@@ -30,7 +30,6 @@ def command(
             'This override what is in the requirements.txt file.'
         ),
     ),
-    dev: bool = typer.Option(False, help='Install development dependencies.'),
     no_cache_dir: bool = typer.Option(False, help='Do not use pip cache directory.'),
     pre: bool = typer.Option(False, help='Install pre-release packages.'),
     proxy_host: StrOrNone = typer.Option(None, help='(Advanced) Hostname for the proxy server.'),
@@ -40,7 +39,14 @@ def command(
 ):
     """Install dependencies defined in the requirements.txt file."""
     cli = DepsCli(
-        app_builder, branch, dev, no_cache_dir, pre, proxy_host, proxy_port, proxy_user, proxy_pass
+        app_builder,
+        branch,
+        no_cache_dir,
+        pre,
+        proxy_host,
+        proxy_port,
+        proxy_user,
+        proxy_pass,
     )
     try:
         # validate python versions
@@ -49,12 +55,15 @@ def command(
         # configure proxy settings
         cli.configure_proxy()
 
-        if branch != default_branch:
-            # create temp requirements.txt file pointing to tcex branch
-            cli.create_temp_requirements()
+        # if branch != default_branch:
+        #     # create temp requirements.txt file pointing to tcex branch
+        #     cli.create_temp_requirements()
 
         # install debs
         cli.install_deps()
+
+        # install dev deps
+        cli.install_deps_tests()
 
         # render output
         Render.table.key_value('Dependency Summary', [o.dict() for o in cli.output])

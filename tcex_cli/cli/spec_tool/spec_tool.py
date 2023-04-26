@@ -49,5 +49,5 @@ def command(
 
         Render.table.key_value('SpecTool Report', cli.summary_data)  # type: ignore
     except Exception as ex:
-        cli.log.exception('Failed to run "tcex spectool" command.')
+        cli.log.exception('Failed to run "tcex spec-tool" command.')
         Render.panel.failure(f'Exception: {ex}')
