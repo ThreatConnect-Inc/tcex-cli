@@ -7,6 +7,7 @@ from pathlib import Path
 
 # third-party
 import typer
+from semantic_version import Version
 
 # first-party
 from tcex_cli.cli.deploy import deploy
@@ -73,6 +74,16 @@ def version_callback(
 
         Render.table.key_value('Version Data', version_data)
         raise typer.Exit()
+
+    # show a warning if using a build or pre-release version of TcEx Framework
+    try:
+        tcex_version = Version.coerce(get_version('tcex'))
+        if tcex_version.build:
+            Render.panel.warning(f'Using a build version ({tcex_version}) of TcEx Framework.')
+        elif tcex_version.prerelease:
+            Render.panel.warning(f'Using a pre-release version ({tcex_version}) of TcEx Framework.')
+    except Exception:  # nosec
+        pass
 
 
 # initialize typer
