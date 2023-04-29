@@ -152,7 +152,9 @@ class DepsCli(CliABC):
         """Create the requirements.lock file."""
         with requirements_file.open(mode='w', encoding='utf-8') as fh:
             # add lock file creation to output
-            self.output.append(KeyValueModel(key='Lock File Created', value=str(requirements_file)))
+            relative_path = requirements_file.relative_to(self.app_path)
+            relative_path = f'[{self.accent}]{relative_path}[/{self.accent}]'
+            self.output.append(KeyValueModel(key='Lock File Created', value=str(relative_path)))
             fh.write(contents)
             fh.write('')
 
@@ -299,7 +301,7 @@ class DepsCli(CliABC):
         self.output.append(
             KeyValueModel(
                 key='Requirement File',
-                value=f'[dark_orange]{str(_requirements_file.name)}[/dark_orange]',
+                value=f'[{self.accent}]{str(_requirements_file.name)}[/{self.accent}]',
             )
         )
         return _requirements_file
@@ -321,7 +323,7 @@ class DepsCli(CliABC):
         self.output.append(
             KeyValueModel(
                 key='Tests Requirement File',
-                value=f'[dark_orange]{str(_requirements_file_tests.name)}[/dark_orange]',
+                value=f'[{self.accent}]{str(_requirements_file_tests.name)}[/{self.accent}]',
             )
         )
         return _requirements_file_tests

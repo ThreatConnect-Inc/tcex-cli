@@ -25,6 +25,7 @@ class CliABC(ABC):
     def __init__(self):
         """Initialize instance properties."""
         # properties
+        self.accent = 'dark_orange'
         self.app_path = Path.cwd()
         self.exit_code = 0
         self.i1 = ' ' * 4  # indent level 1
