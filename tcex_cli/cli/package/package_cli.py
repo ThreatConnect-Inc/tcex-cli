@@ -69,6 +69,7 @@ class PackageCli(CliABC):
             '.vscode',  # Visual Studio Code
             'angular.json',  # angular configuration file
             'app.yaml',  # requirements builder configuration file
+            'app_inputs*.json',  # local testing configuration file
             'artifacts',  # pytest in CI/CD
             'assets',  # pytest in BB Pipelines
             'cspell.json',  # cspell configuration file

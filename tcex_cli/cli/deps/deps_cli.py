@@ -298,10 +298,11 @@ class DepsCli(CliABC):
         self.output.append(KeyValueModel(key='Dependencies Directory', value=self.deps_dir.name))
 
         # add requirements file to output
+        relative_path = _requirements_file.relative_to(self.app_path)
         self.output.append(
             KeyValueModel(
                 key='Requirement File',
-                value=f'[{self.accent}]{str(_requirements_file.name)}[/{self.accent}]',
+                value=f'[{self.accent}]{str(relative_path)}[/{self.accent}]',
             )
         )
         return _requirements_file
@@ -320,10 +321,11 @@ class DepsCli(CliABC):
         )
 
         # add requirements file to output
+        relative_path = _requirements_file_tests.relative_to(self.app_path)
         self.output.append(
             KeyValueModel(
                 key='Tests Requirement File',
-                value=f'[{self.accent}]{str(_requirements_file_tests.name)}[/{self.accent}]',
+                value=f'[{self.accent}]{str(relative_path)}[/{self.accent}]',
             )
         )
         return _requirements_file_tests

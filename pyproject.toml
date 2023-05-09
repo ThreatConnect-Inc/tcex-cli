@@ -23,6 +23,7 @@ dependencies = [
   'black',
   'inflect',
   'isort',
+  'paho.mqtt',
   'pyaes',
   'pydantic',
   'python-dateutil',
@@ -67,7 +68,7 @@ readme = {file = ["README.md"], content-type = "text/markdown"}
 version = {attr = "tcex_cli.__version__"}
 
 [tool.setuptools.packages.find]
-exclude = ["tests*"]
+exclude = ["tests*", "local-*"]
 
 #
 # Linters / Formatters
@@ -115,6 +116,7 @@ disable = [
   "logging-fstring-interpolation",
   "relative-beyond-top-level", # disable relative rule due to this project being a submodule
   "too-few-public-methods",
+  "too-many-ancestors",
   "too-many-arguments",
   "too-many-branches",
   "too-many-instance-attributes",

@@ -8,6 +8,7 @@ The TcEx CLI package provides functionality for creating ThreatConnect Apps and 
  * black (https://pypi.org/project/black/)
  * inflect (https://pypi.python.org/pypi/inflect)
  * isort (https://pypi.org/project/isort/)
+ * paho-mqtt (https://pypi.org/project/paho-mqtt/)
  * pyaes (https://pypi.org/project/pyaes/)
  * pydantic (https://pypi.org/project/pydantic/)
  * python-dateutil (https://pypi.python.org/pypi/python-dateutil)

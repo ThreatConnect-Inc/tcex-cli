@@ -13,6 +13,7 @@ from semantic_version import Version
 from tcex_cli.cli.deploy import deploy
 from tcex_cli.cli.deps import deps
 from tcex_cli.cli.package import package
+from tcex_cli.cli.run import run
 from tcex_cli.cli.spec_tool import spec_tool
 from tcex_cli.cli.template import init, list_, update
 from tcex_cli.cli.validate import validate
@@ -93,6 +94,7 @@ app.command('deps')(deps.command)
 app.command('init')(init.command)
 app.command('list')(list_.command)
 app.command('package')(package.command)
+app.command('run')(run.command)
 app.command('spec-tool')(spec_tool.command)
 app.command('update')(update.command)
 app.command('validate')(validate.command)
