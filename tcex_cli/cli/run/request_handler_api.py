@@ -189,3 +189,7 @@ class RequestHandlerApi(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST method."""
         return self.call_service('POST')
+
+    def do_PUT(self):
+        """Handle POST method."""
+        return self.call_service('PUT')

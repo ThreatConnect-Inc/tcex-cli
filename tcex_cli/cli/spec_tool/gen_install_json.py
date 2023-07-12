@@ -21,6 +21,11 @@ class GenInstallJson(CliABC):
 
     def _add_standard_fields(self, install_json_data: dict):
         """Add field that apply to ALL App types."""
+        try:
+            tcex_version = version('tcex')
+        except Exception:
+            tcex_version = None
+
         install_json_data.update(
             {
                 'allowOnDemand': self.asy.model.allow_on_demand,
@@ -39,7 +44,7 @@ class GenInstallJson(CliABC):
                 'programMain': self.asy.model.program_main,
                 'programVersion': str(self.asy.model.program_version),
                 'runtimeLevel': self.asy.model.runtime_level,
-                'sdkVersion': version('tcex'),
+                'sdkVersion': tcex_version,
             }
         )
 
