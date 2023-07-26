@@ -17,35 +17,20 @@ TC_ENTITY_KEYS = ['type', 'value', 'id']
 KEY_VALUE_KEYS = ['key', 'value']
 
 
-class StagedVariable:
-    """Staged Variable"""
-
-    def __init__(self, name, type_):
-        """Initialize class properties."""
-        self.name = name
-        self.type = type_
-
-    def __str__(self):
-        """Return string representation of class."""
-        return f'APP:1234:{self.name.lower()}!{self.type}'
-
-
 class BaseStagger:
     """Base class for staging data in the kvstore."""
 
-    def __init__(
-        self, staged_variable: StagedVariable, value: bytes | dict | str | list[bytes | dict | str]
-    ):
+    def __init__(self, key: str, value: bytes | dict | str | list[bytes | dict | str]):
         """Initialize class properties."""
-        self.staged_variable = staged_variable
+        self.key = key
         self.value = value
 
         self.validate()
 
     def validate(self):
         """Validate the provided data."""
-        if self.staged_variable is None or self.value is None:
-            raise RuntimeError(f'Invalid data provided, failed to stage {self.staged_variable}.')
+        if self.key is None or self.value is None:
+            raise RuntimeError(f'Invalid data provided, failed to stage {self.key}.')
         self.validate_value()
 
     @staticmethod
@@ -91,7 +76,7 @@ class BaseStagger:
             return None
         value = self.transform()
         value = self.serialize(value)
-        return kv_store.hset(context, str(self.staged_variable), value)
+        return kv_store.hset(context, self.key, value)
 
 
 class TCEntityStagger(BaseStagger):
@@ -125,12 +110,20 @@ class BinaryStagger(BaseStagger):
 
     def validate_value(self):
         """Raise a RuntimeError if provided data is not bytes."""
-        if not isinstance(self.value, bytes):
+        if not isinstance(self.value, str):
             raise RuntimeError('Invalid data provided for Binary.')
+
+        try:
+            base64.b64decode(self.value)
+        except Exception as e:
+            raise RuntimeError(
+                'Invalid data provided for Binary. Please ensure data is base64 encoded.'
+            ) from e
 
     def transform(self) -> str:
         """Return a string value from bytes."""
-        return base64.b64encode(self.value).decode('utf-8')
+        value = base64.b64decode(self.value)
+        return base64.b64encode(value).decode('utf-8')
 
 
 class BinaryArrayStagger(BaseStagger):
@@ -142,15 +135,23 @@ class BinaryArrayStagger(BaseStagger):
             raise RuntimeError('Invalid data provided for BinaryArray.')
 
         for value in self.value:
-            if not isinstance(value, bytes):
-                raise RuntimeError('Invalid data provided for Binary.')
+            if not isinstance(value, str):
+                raise RuntimeError('Invalid data provided for BinaryArray.')
+            try:
+                base64.b64decode(value)
+            except Exception as e:
+                raise RuntimeError(
+                    'Invalid data provided for BinaryArray. Please ensure data is base64 encoded.'
+                ) from e
 
     def transform(self) -> list[str]:
         """Return a list of string values from a list bytes."""
-        value_encoded = []
+        values = []
         for v in self.value:
-            value_encoded.append(base64.b64encode(v).decode('utf-8'))
-        return value_encoded
+            v = base64.b64decode(v)
+            values.append(base64.b64encode(v).decode('utf-8'))
+
+        return values
 
 
 class KeyValueStagger(BaseStagger):
