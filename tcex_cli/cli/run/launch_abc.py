@@ -48,17 +48,17 @@ class LaunchABC(ABC):
         encrypted_data = self.util.encrypt_aes_cbc(key, data)
 
         # ensure that the in directory exists
-        inputs.tc_in_path.mkdir(parents=True, exist_ok=True)
+        inputs.tc_in_path.mkdir(parents=True, exist_ok=True)  # type: ignore
 
         # write the file in/.app_params.json
-        app_params_json = inputs.tc_in_path / '.test_app_params.json'
+        app_params_json = inputs.tc_in_path / '.test_app_params.json'  # type: ignore
         with app_params_json.open(mode='wb') as fh:
             fh.write(encrypted_data)
 
-        # TODO: [high] TEMP - DELETE THIS
-        app_params_json_decrypted = inputs.tc_in_path / '.test_app_params-decrypted.json'
-        with app_params_json_decrypted.open(mode='w') as fh:
-            fh.write(data)
+        # Test code to write decrypted file for debugging
+        # app_params_json_decrypted = inputs.tc_in_path / '.test_app_params-decrypted.json'
+        # with app_params_json_decrypted.open(mode='w') as fh:
+        #     fh.write(data)
 
         # when the App is launched the tcex.input module reads the encrypted
         # file created above # for inputs. in order to decrypt the file, this

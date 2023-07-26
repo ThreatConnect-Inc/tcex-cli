@@ -122,7 +122,7 @@ class BinaryStagger(BaseStagger):
 
     def transform(self) -> str:
         """Return a string value from bytes."""
-        value = base64.b64decode(self.value)
+        value = base64.b64decode(self.value)  # type: ignore
         return base64.b64encode(value).decode('utf-8')
 
 
@@ -148,7 +148,7 @@ class BinaryArrayStagger(BaseStagger):
         """Return a list of string values from a list bytes."""
         values = []
         for v in self.value:
-            v = base64.b64decode(v)
+            v = base64.b64decode(v)  # type: ignore
             values.append(base64.b64encode(v).decode('utf-8'))
 
         return values
