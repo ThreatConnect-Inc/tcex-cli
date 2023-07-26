@@ -57,7 +57,7 @@ class DeployCli(CliABC):
                     'More than one App file found, can\'t autodetect the correct file.',
                 )
             elif not app_files:
-                Render.panel.failure('No App file found.')
+                Render.panel.failure('No App package found. Please run "tcex package" first.')
 
             # set app_file to the only file found
             self._app_file = app_files[0]

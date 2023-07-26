@@ -33,9 +33,6 @@ def command(
 ):
     """CLI command for deploying Apps to ThreatConnect Exchange.
 
-    WARNING: This command is not intended for production use and requires
-    special configuration in the ThreatConnect platform to work.
-
     This command REQUIRES the following environment variables to be set.
 
     * TC_API_PATH
