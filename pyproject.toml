@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
   "arrow",
   "black",
+  "debugpy",
   "inflect",
   "isort",
   "paho.mqtt",
