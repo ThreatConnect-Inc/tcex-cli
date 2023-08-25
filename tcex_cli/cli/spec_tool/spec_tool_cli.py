@@ -90,15 +90,7 @@ class SpecToolCli(CliABC):
         code = gen.generate()
         self.write_app_file(gen.filename, CodeOperation.format_code('\n'.join(code)))
         if gen.report_mismatch:
-            _reports = []
-            for r in gen.report_mismatch:
-                _reports.append(
-                    {
-                        'key': 'Mismatch',
-                        'value': r,
-                    }
-                )
-            self.report_data['Mismatch Report'] = _reports
+            Render.table_mismatch('Mismatch Report', data=gen.report_mismatch)
 
     def generate_app_spec(self):
         """Generate the app_spec.yml file."""

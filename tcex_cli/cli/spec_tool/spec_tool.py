@@ -10,8 +10,7 @@ from tcex_cli.render.render import Render
 
 def command(
     all_: bool = typer.Option(False, '--all', help='Generate all configuration files.'),
-    # TODO: the app_input logic needs to be updated for Python 3.11
-    # app_input: bool = typer.Option(False, help='Generate app_input.py.'),
+    app_input: bool = typer.Option(False, help='Generate app_input.py.'),
     app_spec: bool = typer.Option(False, help='Generate app_spec.yml.'),
     install_json: bool = typer.Option(False, help='Generate install.json.'),
     job_json: bool = typer.Option(False, help='Generate job.json.'),
@@ -41,8 +40,8 @@ def command(
             if tcex_json is True or all_ is True:
                 cli.generate_tcex_json()
 
-            # if app_input is True or all_ is True:
-            #     cli.generate_app_input()
+            if app_input is True or all_ is True:
+                cli.generate_app_input()
 
             if readme_md is True or all_ is True:
                 cli.generate_readme_md()

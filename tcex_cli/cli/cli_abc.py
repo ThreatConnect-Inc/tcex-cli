@@ -12,6 +12,7 @@ from semantic_version import Version
 
 # first-party
 from tcex_cli.app.app import App
+from tcex_cli.input.field_type.sensitive import Sensitive
 from tcex_cli.registry import registry
 from tcex_cli.util import Util
 
@@ -39,6 +40,30 @@ class CliABC(ABC):
 
         # register commands
         registry.add_service(App, self.app)
+
+    def _process_proxy_host(self, proxy_host: str | None) -> str | None:
+        """Process proxy host."""
+        os_proxy_host = os.getenv('TC_PROXY_HOST')
+        return proxy_host if proxy_host else os_proxy_host
+
+    def _process_proxy_pass(self, proxy_pass: Sensitive | str | None) -> Sensitive | None:
+        """Process proxy password."""
+        os_proxy_pass = os.getenv('TC_PROXY_PASS') or os.getenv('TC_PROXY_PASSWORD')
+        proxy_pass = proxy_pass if proxy_pass else os_proxy_pass
+        if proxy_pass is not None and not isinstance(proxy_pass, Sensitive):
+            return Sensitive(proxy_pass)
+        return proxy_pass
+
+    def _process_proxy_port(self, proxy_port: int | str | None) -> int | None:
+        """Process proxy port."""
+        os_proxy_port = os.getenv('TC_PROXY_PORT')
+        port = proxy_port if proxy_port else os_proxy_port
+        return int(port) if port is not None else None
+
+    def _process_proxy_user(self, proxy_user: str | None) -> str | None:
+        """Process proxy user."""
+        os_proxy_user = os.getenv('TC_PROXY_USER') or os.getenv('TC_PROXY_USERNAME')
+        return proxy_user if proxy_user else os_proxy_user
 
     @cached_property
     def app(self) -> App:

@@ -38,6 +38,12 @@ def command(
     * TC_API_PATH
     * TC_API_ACCESS_ID
     * TC_API_SECRET_KEY
+
+    Optional environment variables include:\n
+    * PROXY_HOST\n
+    * PROXY_PORT\n
+    * PROXY_USER\n
+    * PROXY_PASS\n
     """
     cli = DeployCli(
         server,

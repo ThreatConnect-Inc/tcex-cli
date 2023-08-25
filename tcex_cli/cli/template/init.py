@@ -43,6 +43,12 @@ def command(
     """Initialize a new App from a template.
 
     Templates can be found at: https://github.com/ThreatConnect-Inc/tcex-app-templates
+
+    Optional environment variables include:\n
+    * PROXY_HOST\n
+    * PROXY_PORT\n
+    * PROXY_USER\n
+    * PROXY_PASS\n
     """
     cli = TemplateCli(
         proxy_host,

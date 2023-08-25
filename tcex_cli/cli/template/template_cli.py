@@ -18,7 +18,6 @@ from tinydb import Query, TinyDB
 from tcex_cli.cli.cli_abc import CliABC
 from tcex_cli.cli.model.file_metadata_model import FileMetadataModel
 from tcex_cli.cli.template.model.template_config_model import TemplateConfigModel
-from tcex_cli.input.field_type.sensitive import Sensitive
 from tcex_cli.pleb.cached_property import cached_property
 from tcex_cli.pleb.proxies import proxies
 from tcex_cli.render.render import Render
@@ -50,10 +49,10 @@ class TemplateCli(CliABC):
         self.template_data: dict[str, list[TemplateConfigModel]] = {}
         self.template_manifest = {}
         self.template_manifest_fqfn = Path('.template_manifest.json')
-        self.proxy_host = proxy_host
-        self.proxy_port = proxy_port
-        self.proxy_user = proxy_user
-        self.proxy_pass = proxy_pass
+        self.proxy_host = self._process_proxy_host(proxy_host)
+        self.proxy_port = self._process_proxy_port(proxy_port)
+        self.proxy_user = self._process_proxy_user(proxy_user)
+        self.proxy_pass = self._process_proxy_pass(proxy_pass)
 
         # load current template manifest
         self.load_template_manifest()
@@ -161,7 +160,7 @@ class TemplateCli(CliABC):
         if item.download_url is None:
             return
 
-        r: Response = self.session.get(
+        r = self.session.get(
             item.download_url, allow_redirects=True, headers={'Cache-Control': 'no-cache'}
         )
         if not r.ok:
@@ -468,7 +467,7 @@ class TemplateCli(CliABC):
             proxy_host=self.proxy_host,
             proxy_port=self.proxy_port,
             proxy_user=self.proxy_user,
-            proxy_pass=Sensitive(self.proxy_pass),
+            proxy_pass=self.proxy_pass,
         )
 
         # add auth if set (typically not require since default site is public)
@@ -583,8 +582,12 @@ class TemplateCli(CliABC):
 
         # retrieve ALL template contents
         data: dict[str, FileMetadataModel] = {}
+
+        # for App builder, both template_name and template_type were made optional in the
+        # model, but in reality these fields are required.  This is a temporary fix to
+        # allow App Builder to work with older Apps that do not have these fields set.
         for template_parent_name in self.template_parents(
-            self.app.tj.model.template_name, self.app.tj.model.template_type, branch
+            self.app.tj.model.template_name, self.app.tj.model.template_type, branch  # type: ignore
         ):
             # template_parent_name is both the name and the path
             self.get_template_contents(
@@ -592,7 +595,7 @@ class TemplateCli(CliABC):
                 data,
                 template_parent_name,
                 template_parent_name,
-                self.app.tj.model.template_type,
+                self.app.tj.model.template_type,  # type: ignore
                 False,
             )
 
@@ -634,7 +637,7 @@ class TemplateCli(CliABC):
     def update_item_prompt(self, branch: str, item: FileMetadataModel) -> bool:
         """Update the prompt value for the provided item."""
         template_config = self.get_template_config(
-            item.template_name, self.app.tj.model.template_type, branch
+            item.template_name, self.app.tj.model.template_type, branch  # type: ignore
         )
 
         # enforce prompt if template config can't be found

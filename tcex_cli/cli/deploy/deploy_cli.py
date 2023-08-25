@@ -31,15 +31,11 @@ class DeployCli(CliABC):
         self._app_file = app_file
         self.allow_all_orgs = allow_all_orgs
         self.allow_distribution = allow_distribution
-        self.proxy_host = proxy_host
-        self.proxy_port = proxy_port
-        self.proxy_user = proxy_user
+        self.proxy_host = self._process_proxy_host(proxy_host)
+        self.proxy_port = self._process_proxy_port(proxy_port)
+        self.proxy_user = self._process_proxy_user(proxy_user)
         self.proxy_pass = self._process_proxy_pass(proxy_pass)
         self.server = server
-
-    def _process_proxy_pass(self, proxy_pass: str | None) -> Sensitive | None:
-        """Process proxy password."""
-        return None if proxy_pass is None else Sensitive(proxy_pass)
 
     def _check_file(self):
         """Return True if file exists."""
@@ -110,7 +106,13 @@ class DeployCli(CliABC):
             )
 
         else:
-            response_data = response.json()[0]
+            try:
+                response_data = response.json()[0]
+            except IndexError as err:
+                Render.panel.failure(
+                    f'Unexpected response from ThreatConnect API. Failed to deploy App: {err}'
+                )
+
             Render.table.key_value(
                 'Successfully Deployed App',
                 {

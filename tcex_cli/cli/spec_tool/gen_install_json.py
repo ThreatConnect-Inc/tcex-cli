@@ -44,7 +44,7 @@ class GenInstallJson(CliABC):
                 'programMain': self.asy.model.program_main,
                 'programVersion': str(self.asy.model.program_version),
                 'runtimeLevel': self.asy.model.runtime_level,
-                'sdkVersion': tcex_version,
+                'sdkVersion': tcex_version or self.asy.model.sdk_version,
             }
         )
 

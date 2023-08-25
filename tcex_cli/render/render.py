@@ -48,6 +48,64 @@ class Render(RenderUtil):
         return TextColumn('{task.description}', table_column=Column(ratio=1))
 
     @classmethod
+    def table_mismatch(
+        cls,
+        title: str,
+        data: list[dict[str, str]],
+        border_style: str = '',
+        key_style: str = 'dodger_blue1',
+        key_width: int = 20,
+        value_style: str = 'bold',
+        value_width: int = 80,
+    ):
+        """Render key/value table.
+
+        Accepts the following structuresL
+        [
+            {
+                'input': '',
+                'calculated': ''
+                'current': ''
+            }
+        ]
+        """
+        table = Table(
+            border_style=border_style,
+            expand=True,
+            show_edge=False,
+            show_header=True,
+        )
+
+        table.add_column(
+            'input',
+            justify='left',
+            max_width=key_width,
+            min_width=key_width,
+            style=key_style,
+        )
+        table.add_column(
+            'calculated',
+            justify='left',
+            max_width=value_width,
+            min_width=value_width,
+            style=value_style,
+        )
+        table.add_column(
+            'current',
+            justify='left',
+            max_width=value_width,
+            min_width=value_width,
+            style=value_style,
+        )
+
+        for item in data:
+            table.add_row(item['input'], item['calculated'], item['current'])
+
+        # render panel->table
+        if data:
+            print(Panel(table, border_style=border_style, title=title, title_align=cls.title_align))
+
+    @classmethod
     def table_package_summary(cls, title: str, summary_data: AppMetadataModel):
         """Render package summary table."""
         table = Table(

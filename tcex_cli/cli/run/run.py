@@ -24,6 +24,10 @@ def command(
     try:
         cli.update_system_path()
 
+        # validate config.json
+        if not config_json.is_file():
+            Render.panel.failure(f'Config file not found [{config_json}]')
+
         # run in debug mode
         if debug is True:
             cli.debug(debug_port)

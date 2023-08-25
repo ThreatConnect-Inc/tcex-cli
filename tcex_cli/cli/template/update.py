@@ -36,13 +36,19 @@ def command(
     proxy_user: StrOrNone = typer.Option(None, help='(Advanced) Username for the proxy server.'),
     proxy_pass: StrOrNone = typer.Option(None, help='(Advanced) Password for the proxy server.'),
 ):
-    """Update a project with the latest template files.
+    r"""Update a project with the latest template files.
 
     Templates can be found at: https://github.com/ThreatConnect-Inc/tcex-app-templates
 
     The template name will be pulled from tcex.json by default. If the template option
     is provided it will be used instead of the value in the tcex.json file. The tcex.json
     file will also be updated with new values.
+
+    Optional environment variables include:\n
+    * PROXY_HOST\n
+    * PROXY_PORT\n
+    * PROXY_USER\n
+    * PROXY_PASS\n
     """
     # external Apps do not support update
     if not Path('tcex.json').is_file():

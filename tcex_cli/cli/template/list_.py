@@ -34,6 +34,12 @@ def command(
     The template name will be pulled from tcex.json by default. If the template option
     is provided it will be used instead of the value in the tcex.json file. The tcex.json
     file will also be updated with new values.
+
+    Optional environment variables include:\n
+    * PROXY_HOST\n
+    * PROXY_PORT\n
+    * PROXY_USER\n
+    * PROXY_PASS\n
     """
     cli = TemplateCli(
         proxy_host,

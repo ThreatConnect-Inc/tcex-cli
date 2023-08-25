@@ -7,7 +7,7 @@ import subprocess  # nosec
 import sys
 from functools import cached_property
 from pathlib import Path
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote
 
 # third-party
 from semantic_version import Version
@@ -41,17 +41,10 @@ class DepsCli(CliABC):
         self.branch = branch
         self.no_cache_dir = no_cache_dir
         self.pre = pre
-        self.proxy_host = proxy_host
-        self.proxy_port = proxy_port
-        self.proxy_user = proxy_user
-        self.proxy_pass = proxy_pass
-
-        if not self.proxy_host and os.environ.get('https_proxy'):
-            parsed_proxy_url = urlsplit(os.environ.get('https_proxy'))
-            self.proxy_host = parsed_proxy_url.hostname
-            self.proxy_port = parsed_proxy_url.port
-            self.proxy_user = parsed_proxy_url.username
-            self.proxy_pass = parsed_proxy_url.password
+        self.proxy_host = self._process_proxy_host(proxy_host)
+        self.proxy_port = self._process_proxy_port(proxy_port)
+        self.proxy_user = self._process_proxy_user(proxy_user)
+        self.proxy_pass = self._process_proxy_pass(proxy_pass)
 
         # properties
         self.deps_dir_tests = self.app_path / 'deps_tests'
@@ -124,13 +117,16 @@ class DepsCli(CliABC):
 
         if self.proxy_host is not None and self.proxy_port is not None:
             # proxy url without auth
+            proxy_pass_ = None
+            if self.proxy_pass is not None and hasattr(self.proxy_pass, 'value'):
+                proxy_pass_ = self.proxy_pass.value
             proxy_url = f'{self.proxy_host}:{self.proxy_port}'
-            if self.proxy_user is not None and self.proxy_pass is not None:
+            if self.proxy_user is not None and proxy_pass_ is not None:
                 proxy_user = quote(self.proxy_user, safe='~')
-                proxy_pass = quote(self.proxy_pass, safe='~')
+                proxy_pass_ = quote(proxy_pass_, safe='~')
 
                 # proxy url with auth
-                proxy_url = f'{proxy_user}:{proxy_pass}@{proxy_url}'
+                proxy_url = f'{proxy_user}:{proxy_pass_}@{proxy_url}'
 
             # update proxy properties
             self.proxy_enabled = True

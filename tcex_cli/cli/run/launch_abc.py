@@ -167,7 +167,6 @@ class LaunchABC(ABC):
             )
         )
 
-    # TODO: [bcs] fix model name :(
     @cached_property
     def session(self) -> TcSession:
         """Return requests Session object for TC admin account."""

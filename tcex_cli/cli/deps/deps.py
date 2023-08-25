@@ -37,7 +37,14 @@ def command(
     proxy_user: StrOrNone = typer.Option(None, help='(Advanced) Username for the proxy server.'),
     proxy_pass: StrOrNone = typer.Option(None, help='(Advanced) Password for the proxy server.'),
 ):
-    """Install dependencies defined in the requirements.txt file."""
+    r"""Install dependencies defined in the requirements.txt file.
+
+    Optional environment variables include:\n
+    * PROXY_HOST\n
+    * PROXY_PORT\n
+    * PROXY_USER\n
+    * PROXY_PASS\n
+    """
     cli = DepsCli(
         app_builder,
         branch,

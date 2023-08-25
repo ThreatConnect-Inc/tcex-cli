@@ -132,9 +132,12 @@ class PackageCli(CliABC):
         # IMPORTANT:
         # The name of the folder in the zip is the *key* for an App. This
         # value must remain consistent for the App to upgrade successfully.
-        app_name_version = (
-            f'{self.app.tj.model.package.app_name}_{self.app.ij.model.package_version}'
-        )
+        # Normal behavior should be to use the major version with a "v" prefix.
+        # However, some older Apps got released with a non-standard version
+        # (e.g., v2.0). For these Apps the version can be overridden by defining
+        # the "package.app_version" field in the tcex.json file.
+        app_version = self.app.tj.model.package.app_version or self.app.ij.model.package_version
+        app_name_version = f'{self.app.tj.model.package.app_name}_{app_version}'
 
         # build app directory
         app_path_fqpn = self.build_fqpn / app_name_version

@@ -5,7 +5,6 @@ import os
 import re
 
 # first-party
-import tcex_cli.input.field_type as FieldTypes
 from tcex_cli.app.config.model.install_json_model import ParamsModel  # TYPE-CHECKING
 from tcex_cli.cli.cli_abc import CliABC
 from tcex_cli.cli.spec_tool.gen_app_input_static import GenAppInputStatic
@@ -27,7 +26,7 @@ class GenAppInput(CliABC):
         # properties
         self._app_inputs_data: dict | None = None
         self.class_model_map = {}
-        self.field_type_modules = set()
+        self.field_type_modules = self._get_current_field_types()
         self.filename = 'app_inputs.py'
         self.input_static = GenAppInputStatic()
         self.log = _logger
@@ -72,7 +71,7 @@ class GenAppInput(CliABC):
             base_class = 'AppBaseModel'
             class_comment = self.class_comment(class_name)
             if class_name in ['AppBaseModel', 'ServiceConfigModel']:
-                base_class = 'BaseModel'
+                base_class = self.input_static.app_base_model_class
             elif class_name == 'TriggerConfigModel':
                 base_class = 'CreateConfigModel'
 
@@ -145,7 +144,7 @@ class GenAppInput(CliABC):
         """Extract the type from the type definition.
 
         string_allow_multiple: String | list[String] -> String | list[String]
-        string_intel_type: String | None -> str | None
+        string_intel_type: str | None -> str | None
         """
         input_extract_pattern = (
             # match beginning white space on line
@@ -162,44 +161,6 @@ class GenAppInput(CliABC):
             )
             return current_type.group(1).strip()
         return None
-
-    def _extract_type_from_list(self, type_data: str) -> str:
-        """Extract type data from list[]."""
-        # extract the type from List
-        list_extract_pattern = r'^list\[(.*)\]'
-        extract_from_list = re.search(list_extract_pattern, type_data)
-        if extract_from_list is not None:
-            self.log.debug(f'action=extract-type-from-list, type-data={type_data}')
-            return extract_from_list.group(1)
-        return type_data
-
-    def _extract_type_from_method(self, type_data: str) -> str:
-        """Extract type data from method (e.g. binary(min_length=2) -> binary)."""
-        remove_args_pattern = r'\([^\)]*\)'
-        type_data = re.sub(remove_args_pattern, '', type_data)
-        self.log.debug(f'action=remove-args-pattern, types-data={type_data}')
-        return type_data
-
-    def _extract_type_from_optional(self, type_data: str) -> str:
-        """Extract type data from Optional[]."""
-        optional_extract_pattern = r'Optional\[?(.*)\]'
-        extracted_data = re.search(optional_extract_pattern, type_data)
-        if extracted_data is not None:
-            type_data = extracted_data.group(1)
-            self.log.debug(f'action=extract-type-from-optional, type-data={type_data}')
-            return extracted_data.group(1)
-        return type_data
-
-    def _extract_type_from_union(self, type_data: str) -> str:
-        """Extract type data from Union[]."""
-        union_extract_pattern = r'Union\[(\((.+)\)|.+)\]'
-        extracted_data = re.search(union_extract_pattern, type_data)
-        if extracted_data is not None:
-            # return the last matched group that is not None
-            type_data = [g for g in extracted_data.groups() if g is not None][-1]
-            self.log.debug(f'action=extract-type-from-union, type-data={type_data}')
-            return type_data
-        return type_data
 
     def _generate_app_inputs_to_action(self):
         """Generate App Input dict from install.json and layout.json."""
@@ -249,11 +210,49 @@ class GenAppInput(CliABC):
             tc_action = re.sub(r'[^a-zA-Z0-9]', '', tc_action)
         return tc_action
 
+    def _gen_type_compare(
+        self, calculated_type: str, current_type: str | None, input_name: str
+    ) -> str:
+        """Retrieve the current type data for the current input."""
+        if current_type is not None and calculated_type != current_type:
+            self.report_mismatch.append(
+                {'input': input_name, 'calculated': calculated_type, 'current': current_type}
+            )
+            self.log.warning(
+                f'input={input_name}, current-type={current_type}, '
+                f'calculated-type={calculated_type}, using=current-type'
+            )
+            return current_type
+        return calculated_type
+
     def _gen_type(self, class_name: str, input_data: ParamsModel) -> str:
         """Determine the type value for the current input."""
+        # calculate the field type for the current input
+        calculated_type, field_types = self._get_type_calculated(input_data)
+        current_type = self._get_type_current(class_name, input_data.name)
+
+        # if the current type is not None, use the current type defined by the developer
+        type_ = self._gen_type_compare(calculated_type, current_type, input_data.name)
+
+        # add field types for import
+        if type_ == calculated_type:
+            for field_type in field_types:
+                if field_type is not None:
+                    # TODO: [low] should we define supported field types?
+                    self.field_type_modules.add(field_type)
+
+                    # # only add the field type if it is a defined field type
+                    # if hasattr(FieldTypes, field_type):
+                    #     self.field_type_modules.add(field_type)
+
+        return type_
+
+    def _get_type_calculated(self, input_data: ParamsModel) -> tuple[str, list]:
+        """Calculate the type value for the current input."""
+        # a list of field types that will be added to the import (e.g. DateTime, integer, String)
         field_types = []
 
-        # get map lookup key
+        # calculate the lookup key for looking in GenAppInputStatic.type_map
         lookup_key = input_data.type
         required_key = 'optional' if input_data.required is False else 'required'
         if input_data.encrypt is True:
@@ -263,6 +262,7 @@ class GenAppInput(CliABC):
         standard_name_type = self._standard_field_to_type_map(input_data.name)
 
         # get the type value and field type
+        type_: str
         if standard_name_type is not None:
             type_ = standard_name_type['type']
             field_types.append(standard_name_type.get('field_type'))
@@ -283,47 +283,61 @@ class GenAppInput(CliABC):
             except (AttributeError, KeyError) as ex:
                 Render.panel.failure(f'Failed looking up type data for {input_data.type} ({ex}).')
 
-        # wrap type data in Optional for non-required inputs
+        # for non-required inputs, make optional
         if input_data.required is False and input_data.type not in ('Boolean'):
-            type_ = f'Optional[{type_}]'
+            type_ = f'{type_} | None'
 
         # append default if one exists
-        # if input_data.default is not None and input_data.type in ('Choice', 'String'):
-        #     type_ += f' = \'{input_data.default}\''
         if input_data.type == 'Boolean':
             type_ += f' = {input_data.default or False}'
 
-        # get the current value from the app_inputs.py file
-        current_type = self._get_current_type(class_name, input_data.name)
-        if current_type is not None and current_type != type_:
-            self.report_mismatch.append(
-                f'{input_data.name} -> calculated-type="{type_}" does '
-                f'not match current-type="{current_type}"'
+        return type_, field_types
+
+    def _get_type_current(self, class_name: str, input_name: str) -> str | None:
+        """Return the type from the current app_input.py file if found."""
+        # parsing the previous app_inputs.py file for the type definition, this is a bit tricky
+        # because the type definition can be in a number of different formats, so we need to
+        # search for it in a number of different ways.
+        # first, search for the input name in the class definition, if not found, search for the
+        # type definition in the entire file. this is best effort, if we can't find the type
+        # definition, we'll just use the calculated type.
+        type_definition = CodeOperation.find_line_in_code(
+            needle=rf'\s+{input_name}: ',
+            code=self.app_inputs_contents,
+            trigger_start=rf'^class {class_name}',
+            trigger_stop=r'^class ',
+        )
+
+        # if we didn't find the type definition in the class definition, search the entire file
+        if type_definition is None:
+            type_definition = CodeOperation.find_line_in_code(
+                needle=fr'\s+{input_name}: ', code=self.app_inputs_contents
             )
+
+        # type_definition -> "string_encrypt: Sensitive | None"
+        self.log.debug(
+            f'action=find-definition, input-name={input_name}, '
+            f'class-name={class_name}, type-definition={type_definition}'
+        )
+
+        # parse out the actual type
+        if type_definition is not None:
+            current_type = self._extract_type_from_definition(input_name, type_definition)
+            if current_type is not None:
+                return current_type
+
             self.log.warning(
-                f'input={input_data.name}, current-type={current_type}, '
-                f'calculated-type={type_}, using=current-type'
+                f'input found, but not matched: input={input_name}, '
+                f'type_definition={type_definition}'
             )
-            field_types = self._get_current_field_types(current_type)
-            type_ = current_type
 
-        # add field types for import
-        for field_type in field_types:
-            if field_type is not None:
-                # only add the field type if it is a defined field type
-                if hasattr(FieldTypes, field_type):
-                    self.field_type_modules.add(field_type)
-
-        # add import data
-        # self._add_typing_import_module(type_)
-
-        return type_
+        return None
 
     def _gen_type_from_playbook_data_type(
         self, required_key: str, playbook_data_types: list[str]
     ) -> tuple[str, list[str]]:
         """Return type based on playbook data type."""
-        # TODO: what to do with Any Playbook Data Type?
+        # TODO: [low] does anything special need to be done for Any type?
         if 'Any' in playbook_data_types:
             self.typing_modules.add('Any')
 
@@ -340,80 +354,26 @@ class GenAppInput(CliABC):
                     self.input_static.type_map[lookup_key][required_key]['field_type']
                 )
                 _types.append(self.input_static.type_map[lookup_key][required_key]['type'])
-            _types = f'''Union[{', '.join(_types)}]'''
+            _types = f'''{' | '.join(_types)}'''
 
         return _types, _field_types
 
-    def _get_current_type(self, class_name: str, input_name: str) -> str | None:
-        """Return the type from the current app_input.py file if found."""
-        # Try to capture the value from the specific class first. If not
-        # found, search the entire app_inputs.py file.
-        type_definition = CodeOperation.find_line_in_code(
-            needle=rf'\s+{input_name}: ',
-            code=self.app_inputs_contents,
-            trigger_start=rf'^class {class_name}',
-            trigger_stop=r'^class ',
-        )
-        if type_definition is None:
-            type_definition = CodeOperation.find_line_in_code(
-                needle=f'{input_name}: ', code=self.app_inputs_contents
-            )
+    def _get_current_field_types(self) -> set[str]:
+        """Return the current type from the type data
 
-        # type_definition -> "string_encrypt: Optional[Sensitive]"
-        self.log.debug(
-            f'action=find-definition, input-name={input_name}, type-definition={type_definition}'
-        )
-
-        # parse out the actual type
-        if type_definition is not None:
-            current_type = self._extract_type_from_definition(input_name, type_definition)
-            if current_type is not None:
-                if 'Union' in current_type:
-                    # the find method will return Union[(String, Optional[String])] that has
-                    # the types as a tuple. this may be valid, but to keep the type
-                    # consistent this bit of code will remove the extra ()/tuple. this
-                    # needs to cover all cases, even the more complicated ones
-                    # (e.g., "Optional[Union[(String, List[String])]]")
-                    _types_data = self._extract_type_from_union(current_type)
-                    union_original = f'Union[({_types_data})]'
-                    union_replace = f'Union[{_types_data}]'
-                    current_type = current_type.replace(union_original, union_replace)
-
-                self.log.debug(
-                    f'action=get-type, input-name={input_name}, current-type={current_type}'
-                )
-                return current_type
-
-            self.log.warning(
-                f'input found, but not matched: input={input_name}, '
-                f'type_definition={type_definition}'
-            )
-
-        return None
-
-    def _get_current_field_types(self, current_type_data: str) -> list[str]:
-        """Return the current type from the type data (e.g., integer(gt=2) -> integer)."""
-        types_data = current_type_data
-
-        # extract the type from Union (e.g. Union[binary(), List[binary()]])
-        types_data = self._extract_type_from_union(types_data)
-
-        # extract type from method (e.g. binary(min_length=2) -> binary)
-        types_data = self._extract_type_from_method(types_data)
-
+        imports: integer, String
+        returns: ['integer', 'String']
+        """
         types = []
-        for type_ in types_data.split(', '):
-            # extract the type from List[]
-            type_ = self._extract_type_from_list(type_)
 
-            # extract the type from Optional[]
-            type_ = self._extract_type_from_optional(type_)
-
-            # append types
-            types.append(type_)
-
-        self.log.debug(f'current-field-types={types}, current-type-data={current_type_data}')
-        return types
+        needle = 'from tcex.input.field_type import'
+        type_definition = CodeOperation.find_line_in_code(
+            needle=rf'^{needle}',
+            code=self.app_inputs_contents,
+        )
+        if type_definition is not None:
+            types = type_definition.replace(needle, '').strip().split(', ')
+        return set(types)
 
     @staticmethod
     def _standard_field_to_type_map(input_name: str) -> dict | None:
@@ -457,8 +417,9 @@ class GenAppInput(CliABC):
             '',
             f'{self.i1}# ensure inputs that take single and array types always return an array',
             (
-                f'{self.i1}_always_array = validator({_always_array}, '
-                'allow_reuse=True)(always_array())'
+                f'{self.i1}_always_array = validator({_always_array}, allow_reuse=True, pre=True)'
+                '(always_array(allow_empty=True, include_empty=False, '
+                'include_null=False, split_csv=True))'
             ),
         ]
 
@@ -517,7 +478,7 @@ class GenAppInput(CliABC):
 
     def generate(self):
         """Generate App Config File"""
-        self.log.debug('--- generate: AppConfig ---')
+        self.log.debug('--- generate: App Inputs ---')
 
         # generate the App Inputs
         self._generate_app_inputs_to_action()
@@ -526,14 +487,13 @@ class GenAppInput(CliABC):
         _code_inputs = self._code_app_inputs_data
 
         # create the app_inputs.py code
-        code = self.input_static.template_app_inputs_prefix(
+        code = self.input_static.template_app_imports(
             self.field_type_modules, self.pydantic_modules, self.typing_modules
         )
         code.extend(_code_inputs)
         if self.app.ij.model.get_param('tc_action') is None:
-            code.extend(self.input_static.template_app_inputs_class)
+            code.extend(self.input_static.template_app_inputs_class())
         else:
             # the App support tc_action and should use the tc_action input class
-            self.typing_modules.add('Optional')
             code.extend(self.input_static.template_app_inputs_class_tc_action(self.class_model_map))
         return code
