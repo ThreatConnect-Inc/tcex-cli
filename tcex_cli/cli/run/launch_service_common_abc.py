@@ -83,7 +83,11 @@ class LaunchServiceCommonABC(LaunchABC, ABC):
 
     def keyboard_listener_reset(self):
         """Reset the keyboard"""
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.stored_keyboard_settings)
+        try:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.stored_keyboard_settings)
+        except Exception:  # nosec
+            # ignore errors for now
+            pass
 
     def live_data_commands(self):
         """Display live data."""

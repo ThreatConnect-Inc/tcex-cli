@@ -44,6 +44,7 @@ class GenAppSpecYml(CliABC):
                 'programMain': self.app.ij.model.program_main,
                 'programVersion': str(self.app.ij.model.program_version),
                 'runtimeLevel': self.app.ij.model.runtime_level,
+                'schemaVersion': '1.1.0',
                 'sdkVersion': self.app.ij.model.sdk_version,
             }
         )

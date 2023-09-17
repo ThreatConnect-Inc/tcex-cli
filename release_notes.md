@@ -1,6 +1,12 @@
 # Release Notes
 
-### 1.0.1
+## 1.0.2
+
+-   APP-4171 - [DEPS] Updated deps command to add a link to lib_latest for current Python version for App Builder
+-   APP-4172 - [CLI] Minor enhancement to output of multiple commands
+-   APP-4773 - [SUBMODULE] Minor update to config submodule
+
+## 1.0.1
 
 -   APP-3915 - [CONFIG] Added validation to ensure displayPath is always in the install.json for API Services
 -   APP-4060 - [CLI] Updated proxy inputs to use environment variables
@@ -9,7 +15,7 @@
 -   APP-4113 - [CONFIG] Updated App Spec model to normalize App features
 
 
-### 1.0.0
+## 1.0.0
 
 -   APP-3926 - Split CLI module of TcEx into tcex-cli project
 -   APP-3912 - [CLI] Updated `tcex` command to use "project.scripts" setting in pyproject.toml

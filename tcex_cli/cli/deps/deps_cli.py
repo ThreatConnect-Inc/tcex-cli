@@ -6,6 +6,7 @@ import shutil
 import subprocess  # nosec
 import sys
 from functools import cached_property
+from importlib.metadata import version as get_version
 from pathlib import Path
 from urllib.parse import quote
 
@@ -154,36 +155,6 @@ class DepsCli(CliABC):
             fh.write(contents)
             fh.write('')
 
-    # def create_temp_requirements(self):
-    #     """Create a temporary requirements.txt.
-
-    #     This allows testing against a git branch instead of pulling from pypi.
-    #     """
-    #     _requirements_fqfn = Path('requirements.txt')
-    #     if self.has_requirements_lock:
-    #         _requirements_fqfn = Path('requirements.lock')
-
-    #     # Replace tcex version with develop branch of tcex
-    #     with _requirements_fqfn.open(encoding='utf-8') as fh:
-    #         current_requirements = fh.read().strip().split('\n')
-
-    #     self.requirements_fqfn_branch = Path(f'temp-{_requirements_fqfn}')
-    #     with self.requirements_fqfn_branch.open(mode='w', encoding='utf-8') as fh:
-    #         requirements = []
-    #         for line in current_requirements:
-    #             if not line:
-    #                 continue
-    #             if line.startswith('tcex'):
-    #                 line = (
-    #                     'git+https://github.com/ThreatConnect-Inc/tcex.git@'
-    #                     f'{self.branch}#egg=tcex'
-    #                 )
-    #             requirements.append(line)
-    #         fh.write('\n'.join(requirements))
-
-    #     # display branch setting
-    #     self.output.append(KeyValueModel(key='Using Branch', value=self.branch))
-
     def download_deps(self, exe_command: list[str]):
         """Download the dependencies (run pip)."""
         # recommended -> https://pip.pypa.io/en/latest/user_guide/#using-pip-from-your-program
@@ -218,11 +189,6 @@ class DepsCli(CliABC):
         # support temp (branch) requirements.txt file
         exe_command = self._build_command(self.deps_dir, self.requirements_fqfn)
 
-        # display tcex version
-        self.output.append(
-            KeyValueModel(key='App TcEx Version', value=str(self.app.ij.model.sdk_version))
-        )
-
         # display command setting
         self.output.append(KeyValueModel(key='Pip Command', value=f'''{' '.join(exe_command)}'''))
 
@@ -244,6 +210,27 @@ class DepsCli(CliABC):
             else:
                 contents = self.requirements_lock_contents(self.deps_dir)
                 self.create_requirements_lock(contents, self.requirements_lock)
+
+        if self.app_builder is True and self.app.ij.model.sdk_version < Version('4.0.0'):
+            # the lib_version directory
+            python_version = self.target_python_version or '3.6.15'
+            lib_version = Path(f'lib_{python_version}')
+
+            # remove previous build director
+            if lib_version.is_symlink():
+                lib_version.unlink()
+            elif lib_version.is_dir():
+                shutil.rmtree(lib_version)
+
+            # create symlink: lib_latest -> lib_version
+            lib_version.symlink_to(self.deps_dir, target_is_directory=True)
+
+        # display tcex version
+        try:
+            self.output.append(KeyValueModel(key='App TcEx Version', value=get_version('tcex')))
+        except Exception:  # nosec
+            # best effort to log tcex version
+            pass
 
     def install_deps_tests(self):
         """Install tests dependencies."""

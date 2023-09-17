@@ -26,6 +26,15 @@ class TestTcexCliDeps:
         deps_dir = Path('deps')
         shutil.rmtree(deps_dir, ignore_errors=True)
 
+    def _remove_proxy_env_vars(self):
+        """Remove proxy env vars"""
+        os.environ.pop('TC_PROXY_HOST', None)
+        os.environ.pop('TC_PROXY_PORT', None)
+        os.environ.pop('TC_PROXY_USER', None)
+        os.environ.pop('TC_PROXY_USERNAME', None)
+        os.environ.pop('TC_PROXY_PASS', None)
+        os.environ.pop('TC_PROXY_PASSWORD', None)
+
     def _run_command(
         self,
         args: list[str],
@@ -52,11 +61,17 @@ class TestTcexCliDeps:
 
     def test_tcex_deps_std(self, monkeypatch: pytest.MonkeyPatch, request: FixtureRequest):
         """Test Case"""
+        # remove proxy env vars
+        self._remove_proxy_env_vars()
+
         result = self._run_command(['deps'], 'app_std', monkeypatch, request)
         assert result.exit_code == 0
 
     def test_tcex_deps_branch(self, monkeypatch: pytest.MonkeyPatch, request: FixtureRequest):
         """Test Case"""
+        # remove proxy env vars
+        self._remove_proxy_env_vars()
+
         branch = 'develop'
         result = self._run_command(['deps', '--branch', branch], 'app_branch', monkeypatch, request)
         assert result.exit_code == 0
@@ -71,12 +86,20 @@ class TestTcexCliDeps:
             if 'Running' in line:
                 assert 'temp-requirements.txt' in line
 
-    def test_tcex_deps_proxy(self, monkeypatch: pytest.MonkeyPatch, request: FixtureRequest):
+    def test_tcex_deps_proxy_env(self, monkeypatch: pytest.MonkeyPatch, request: FixtureRequest):
+        """Test Case"""
+        # proxy settings will be pulled from env vars
+        result = self._run_command(['deps'], 'app_std', monkeypatch, request)
+        assert result.exit_code == 0
+
+    def test_tcex_deps_proxy_explicit(
+        self, monkeypatch: pytest.MonkeyPatch, request: FixtureRequest
+    ):
         """Test Case"""
         proxy_host = os.getenv('TC_PROXY_HOST')
         proxy_port = os.getenv('TC_PROXY_PORT')
-        proxy_user = os.getenv('TC_PROXY_USERNAME')
-        proxy_pass = os.getenv('TC_PROXY_PASSWORD')
+        proxy_user = os.getenv('TC_PROXY_USERNAME') or os.getenv('TC_PROXY_USER')
+        proxy_pass = os.getenv('TC_PROXY_PASSWORD') or os.getenv('TC_PROXY_PASS')
 
         command = ['deps', '--proxy-host', proxy_host, '--proxy-port', proxy_port]
         if proxy_user and proxy_pass:

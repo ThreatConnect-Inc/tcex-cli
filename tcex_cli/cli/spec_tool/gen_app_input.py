@@ -31,7 +31,7 @@ class GenAppInput(CliABC):
         self.input_static = GenAppInputStatic()
         self.log = _logger
         self.typing_modules = set()
-        self.pydantic_modules = {'BaseModel'}
+        self.pydantic_modules = set()
         self.report_mismatch = []
 
     def _add_action_classes(self):

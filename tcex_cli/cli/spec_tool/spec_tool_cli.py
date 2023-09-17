@@ -102,6 +102,9 @@ class SpecToolCli(CliABC):
 
         self.write_app_file(gen.filename, f'{config}\n')
 
+        # for reload/rewrite/fix of app_spec.yml
+        self.asy.contents  # pylint: disable=pointless-statement
+
     def generate_install_json(self):
         """Generate the install.json file."""
         gen = GenInstallJson(self.asy)

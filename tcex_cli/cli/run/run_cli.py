@@ -11,6 +11,8 @@ from tcex_cli.cli.run.launch_playbook import LaunchPlaybook
 from tcex_cli.cli.run.launch_service_api import LaunchServiceApi
 from tcex_cli.cli.run.launch_service_custom_trigger import LaunchServiceCustomTrigger
 from tcex_cli.cli.run.launch_service_webhook_trigger import LaunchServiceWebhookTrigger
+from tcex_cli.cli.run.model.app_api_service_model import AppApiServiceModel
+from tcex_cli.cli.run.model.app_webhook_trigger_service_model import AppWebhookTriggerServiceModel
 from tcex_cli.render.render import Render
 
 
@@ -27,6 +29,20 @@ class RunCli(CliABC):
 
         # validate in App directory
         self._validate_in_app_directory()
+
+    def _display_api_settings(self, api_inputs: AppApiServiceModel | AppWebhookTriggerServiceModel):
+        """Display API settings."""
+        Render.panel.info(
+            (
+                'Current API Service Settings:\n'
+                f'host: [{self.accent}]{api_inputs.api_service_host}[/{self.accent}]\n'
+                f'port: [{self.accent}]{api_inputs.api_service_port}[/{self.accent}]\n\n'
+                'API default settings can be overridden with these environment variables:\n'
+                f'  - [{self.accent}]API_SERVICE_HOST[/{self.accent}]\n'
+                f'  - [{self.accent}]API_SERVICE_PORT[/{self.accent}]'
+            ),
+            'API Settings',
+        )
 
     def _validate_in_app_directory(self):
         """Return True if in App directory."""
@@ -58,6 +74,7 @@ class RunCli(CliABC):
             case 'apiservice':
                 Render.panel.info('Launching API Service', f'[{self.panel_title}]Running App[/]')
                 launch_app = LaunchServiceApi(config_json)
+                self._display_api_settings(launch_app.model.inputs)
                 launch_app.setup()
                 exit_code = launch_app.launch()
                 self.exit_cli(exit_code)
@@ -101,6 +118,7 @@ class RunCli(CliABC):
                     'Launching Webhook Trigger Service', f'[{self.panel_title}]Running App[/]'
                 )
                 launch_app = LaunchServiceWebhookTrigger(config_json)
+                self._display_api_settings(launch_app.model.inputs)
                 launch_app.setup()
                 exit_code = launch_app.launch()
                 self.exit_cli(exit_code)

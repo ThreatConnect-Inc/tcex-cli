@@ -128,7 +128,7 @@ class GenAppInputStatic:
 
         # add import for service trigger Apps
         if self.ij.model.is_trigger_app:
-            _imports.append('from tcex.input.model import CreateConfigModel')
+            _imports.append('from tcex.input.model.create_config_model import CreateConfigModel')
 
         # add new lines
         _imports.extend(

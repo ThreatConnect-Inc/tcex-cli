@@ -160,8 +160,11 @@ class TemplateCli(CliABC):
         if item.download_url is None:
             return
 
+        # neither of the following options seem to work, but leaving here for future reference:
+        # - headers={'Cache-Control': 'no-cache'}
+        # - headers={'Cache-Control': 'max-age=0'}
         r = self.session.get(
-            item.download_url, allow_redirects=True, headers={'Cache-Control': 'no-cache'}
+            item.download_url, allow_redirects=True, headers={'Cache-Control': 'max-age=0'}
         )
         if not r.ok:
             self.log.error(

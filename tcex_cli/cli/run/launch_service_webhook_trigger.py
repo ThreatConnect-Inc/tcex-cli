@@ -66,8 +66,8 @@ class LaunchServiceWebhookTrigger(LaunchServiceCommonTriggersABC):
 
     def live_data_header(self) -> Panel:
         """Display live header."""
+        panel_data = []
         if self.model.trigger_inputs:
-            panel_data = []
             for trigger_id, _ in enumerate(self.model.trigger_inputs):
                 panel_data.append(
                     f'Running server: [{self.accent}]http://{self.model.inputs.api_service_host}'

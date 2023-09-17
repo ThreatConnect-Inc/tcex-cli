@@ -93,8 +93,11 @@ class DeployCli(CliABC):
         except Exception as err:
             Render.panel.failure(f'Failed Deploying App: {err}')
 
-        if not response.ok:
+        # TC will respond with a 200 even if the deploy fails with content of "[]"
+        if not response.ok or response.text in ('[]', None):
             reason = response.text or response.reason
+            if response.text == '[]':
+                reason = 'TC responded with an empty array ([]), which indicates a failure.'
             Render.table.key_value(
                 'Failed To Deploy App',
                 {
