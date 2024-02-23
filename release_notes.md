@@ -1,5 +1,9 @@
 # Release Notes
 
+## 1.0.3
+
+- APP-4397 [CONFIG] Update to make runtimeVariable feature a default feature only for playbook apps.
+
 ## 1.0.2
 
 -   APP-4171 - [DEPS] Updated deps command to add a link to lib_latest for current Python version for App Builder
