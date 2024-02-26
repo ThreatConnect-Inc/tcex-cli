@@ -1,4 +1,5 @@
 """TcEx Framework Module"""
+
 # standard library
 import logging
 from collections.abc import Generator
@@ -119,7 +120,9 @@ class Sensitive:
         """Raise exception if value is not a String type."""
         if not isinstance(value, (bytes, str, Sensitive)):
             raise InvalidType(
-                field_name=field.name, expected_types='(bytes, str)', provided_type=type(value)
+                field_name=field.name,
+                expected_types='(bytes, str)',
+                provided_type=type(value).__name__,
             )
         return value
 
