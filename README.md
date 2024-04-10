@@ -6,7 +6,7 @@ The TcEx CLI package provides functionality for creating ThreatConnect Apps and 
 
  * arrow (https://pypi.python.org/pypi/arrow)
  * black (https://pypi.org/project/black/)
- * inflect (https://pypi.python.org/pypi/inflect)
+ * inflection (https://pypi.python.org/pypi/inflection)
  * isort (https://pypi.org/project/isort/)
  * paho-mqtt (https://pypi.org/project/paho-mqtt/)
  * pyaes (https://pypi.org/project/pyaes/)
