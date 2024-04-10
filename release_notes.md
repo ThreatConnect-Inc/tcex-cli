@@ -2,7 +2,9 @@
 
 ## 1.0.3
 
-- APP-4397 [CONFIG] Update to make runtimeVariable feature a default feature only for playbook apps.
+-   APP-4397 - [PACKAGE] Updated feature generation logic to make runtimeVariable on be added for Playbook Apps
+-   APP-4439 - [PACKAGE] Changed appId creation logic to used UUID4 instead of UUID5 for App Builder
+-   APP-4440 - [MIGRATE] Added new command to assist in migration of TcEx 3 Apps to TcEx 4
 
 ## 1.0.2
 

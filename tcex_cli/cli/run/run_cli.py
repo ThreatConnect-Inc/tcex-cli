@@ -67,7 +67,7 @@ class RunCli(CliABC):
         Render.panel.info(f'{exit_code}', f'[{self.panel_title}]Exit Code[/]')
         sys.exit(exit_code)
 
-    def run(self, config_json: Path):
+    def run(self, config_json: Path, debug: bool = False):
         """Run the App"""
 
         match self.ij.model.runtime_level.lower():
@@ -75,7 +75,7 @@ class RunCli(CliABC):
                 Render.panel.info('Launching API Service', f'[{self.panel_title}]Running App[/]')
                 launch_app = LaunchServiceApi(config_json)
                 self._display_api_settings(launch_app.model.inputs)
-                launch_app.setup()
+                launch_app.setup(debug)
                 exit_code = launch_app.launch()
                 self.exit_cli(exit_code)
 
@@ -84,7 +84,7 @@ class RunCli(CliABC):
                     'Launching Feed API Service', f'[{self.panel_title}]Running App[/]'
                 )
                 launch_app = LaunchServiceApi(config_json)
-                launch_app.setup()
+                launch_app.setup(debug)
                 exit_code = launch_app.launch()
                 self.exit_cli(exit_code)
 
@@ -109,7 +109,7 @@ class RunCli(CliABC):
                     'Launching Trigger Service', f'[{self.panel_title}]Running App[/]'
                 )
                 launch_app = LaunchServiceCustomTrigger(config_json)
-                launch_app.setup()
+                launch_app.setup(debug)
                 exit_code = launch_app.launch()
                 self.exit_cli(exit_code)
 
@@ -119,6 +119,6 @@ class RunCli(CliABC):
                 )
                 launch_app = LaunchServiceWebhookTrigger(config_json)
                 self._display_api_settings(launch_app.model.inputs)
-                launch_app.setup()
+                launch_app.setup(debug)
                 exit_code = launch_app.launch()
                 self.exit_cli(exit_code)

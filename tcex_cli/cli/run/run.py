@@ -33,7 +33,7 @@ def command(
             cli.debug(debug_port)
 
         # run the App
-        cli.run(config_json)
+        cli.run(config_json, debug)
 
     except Exception as ex:
         cli.log.exception('Failed to run "tcex run" command.')

@@ -1,4 +1,5 @@
 """TcEx Framework Module"""
+
 # standard library
 import fnmatch
 import json
@@ -162,6 +163,7 @@ class PackageCli(CliABC):
             package_name=package_name,
             template_directory=self.template_fqpn.name,
             version=str(self.app.ij.model.program_version),
+            features=', '.join(ij_template.model.features),
         )
 
         # cleanup build directory

@@ -46,7 +46,7 @@ class LaunchServiceCustomTrigger(LaunchServiceCommonTriggersABC):
                 layout['commands'].update(self.live_data_commands())
                 self.event.clear()
 
-    def setup(self):
+    def setup(self, debug: bool = False):
         """Configure the API Web Server."""
         # start keyboard listener
         kl = Thread(target=self.keyboard_listener, name='KeyboardListener', daemon=True)
@@ -70,7 +70,8 @@ class LaunchServiceCustomTrigger(LaunchServiceCommonTriggersABC):
         )
 
         # start live display
-        self.display_thread = Thread(
-            target=self.live_data_display, name='LiveDataDisplay', daemon=True
-        )
-        self.display_thread.start()
+        if debug is False:
+            self.display_thread = Thread(
+                target=self.live_data_display, name='LiveDataDisplay', daemon=True
+            )
+            self.display_thread.start()

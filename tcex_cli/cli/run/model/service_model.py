@@ -19,7 +19,7 @@ class ServiceModel(BaseSettings):
     tc_svc_broker_timeout: int = 60
     tc_svc_broker_token: Sensitive | None = None
     tc_svc_client_topic: str = 'tcex-app-testing-client-topic'
-    tc_svc_hb_timeout_seconds: int = 600
+    tc_svc_hb_timeout_seconds: int = 3600
     tc_svc_id: int | None = None
     tc_svc_server_topic: str = 'tcex-app-testing-server-topic'
 

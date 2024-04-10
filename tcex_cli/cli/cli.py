@@ -12,6 +12,7 @@ from semantic_version import Version
 # first-party
 from tcex_cli.cli.deploy import deploy
 from tcex_cli.cli.deps import deps
+from tcex_cli.cli.migrate import migrate
 from tcex_cli.cli.package import package
 from tcex_cli.cli.run import run
 from tcex_cli.cli.spec_tool import spec_tool
@@ -93,6 +94,7 @@ app.command('deploy')(deploy.command)
 app.command('deps')(deps.command)
 app.command('init')(init.command)
 app.command('list')(list_.command)
+app.command('migrate')(migrate.command)
 app.command('package')(package.command)
 app.command('run')(run.command)
 app.command('spec-tool')(spec_tool.command)

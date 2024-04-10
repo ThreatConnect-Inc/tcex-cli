@@ -224,7 +224,7 @@ class LaunchServiceApi(LaunchServiceCommonABC):
 
         self.event.set()
 
-    def setup(self):
+    def setup(self, debug: bool = False):
         """Configure the API Web Server."""
         # setup web server
         self.api_web_server.setup()
@@ -251,7 +251,8 @@ class LaunchServiceApi(LaunchServiceCommonABC):
         )
 
         # start live display
-        self.display_thread = Thread(
-            target=self.live_data_display, name='LiveDataDisplay', daemon=True
-        )
-        self.display_thread.start()
+        if debug is False:
+            self.display_thread = Thread(
+                target=self.live_data_display, name='LiveDataDisplay', daemon=True
+            )
+            self.display_thread.start()
