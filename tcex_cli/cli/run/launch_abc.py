@@ -1,17 +1,21 @@
 """TcEx Framework Module"""
+
 # standard library
+import atexit
 import json
 import logging
 import os
 import random
+import socket
 import string
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
+from threading import Thread
 
 # third-party
 import redis
+from fakeredis import TcpFakeServer
 from pydantic import BaseModel
 
 # first-party
@@ -38,8 +42,10 @@ class LaunchABC(ABC):
         self.accent = 'dark_orange'
         self.log = _logger
         self.panel_title = 'blue'
-        self.stored_keyboard_settings: Any
         self.util = Util()
+
+        # ensure redis is available
+        self.redis_server()
 
     def create_input_config(self, inputs: BaseModel):
         """Create files necessary to start a Service App."""
@@ -90,7 +96,6 @@ class LaunchABC(ABC):
 
     def launch(self):
         """Launch the App."""
-
         # third-party
         from run import Run  # type: ignore # pylint: disable=import-error,import-outside-toplevel
 
@@ -138,7 +143,8 @@ class LaunchABC(ABC):
         output_data_ = self.redis_client.hgetall(context)
         if output_data_:
             output_data_ = {
-                k: json.loads(v) for k, v in self.output_data_process(output_data_).items()
+                k: json.loads(v)
+                for k, v in self.output_data_process(output_data_).items()  # type: ignore
             }
             return output_data_
         return {}
@@ -155,6 +161,39 @@ class LaunchABC(ABC):
                 v = self.output_data_process(v)
             output_data_[k.decode('utf-8')] = v
         return output_data_
+
+    def redis_server(self):
+        """Validate Redis is running or start a fake Redis server."""
+        server_address = self.model.inputs.tc_kvstore_host
+        server_port = self.model.inputs.tc_kvstore_port
+
+        def is_port_in_use() -> bool:
+            """Check if a port is in use."""
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                return s.connect_ex((server_address, server_port)) == 0
+
+        if is_port_in_use():
+            Render.panel.info(
+                message=f'Running on {server_address}:{server_port}.',
+                title=f'[{self.panel_title}]Redis Server[/]',
+            )
+        else:
+            Render.panel.info(
+                message=f'Running FakeRedis on {server_address}:{server_port}.',
+                title=f'[{self.panel_title}]Redis Server[/]',
+            )
+            server_address = (server_address, server_port)
+            tcp_fake_server = TcpFakeServer(server_address, server_type='redis')
+
+            t = Thread(target=tcp_fake_server.serve_forever, daemon=True)
+            t.start()
+
+            @atexit.register
+            def server_shutdown():
+                """."""
+                self.log.debug('Shutting down FakeRedis server.')
+                tcp_fake_server.shutdown()
+                t.join(timeout=1)
 
     @cached_property
     def redis_client(self) -> redis.Redis:
