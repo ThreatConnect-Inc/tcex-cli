@@ -62,6 +62,7 @@ class GenInstallJson(CliABC):
         """Add field that apply to ALL App types."""
         if self.asy.model.is_api_service_app:
             install_json_data['displayPath'] = self.asy.model.display_path
+            install_json_data['service'] = self.asy.model.service
 
     def _add_type_organization_fields(self, install_json_data: dict):
         """Add field that apply to ALL App types."""

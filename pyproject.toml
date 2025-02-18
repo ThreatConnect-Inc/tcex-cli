@@ -51,6 +51,7 @@ dev = [
   "pydocstyle",
   "pylint",
   "pyright",
+  "python-dotenv",
   "pyupgrade",
 ]
 test = [
@@ -124,8 +125,10 @@ disable = [
   "too-many-instance-attributes",
   "too-many-lines",
   "too-many-locals",
+  "too-many-positional-arguments",
   "too-many-public-methods",
   "too-many-return-statements",
+  "unnecessary-lambda",
 ]
 extension-pkg-whitelist = "pydantic"
 

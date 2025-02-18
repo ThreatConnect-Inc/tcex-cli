@@ -1,4 +1,5 @@
 """TcEx Framework Module"""
+
 # standard library
 from threading import Thread
 
@@ -48,10 +49,6 @@ class LaunchServiceCustomTrigger(LaunchServiceCommonTriggersABC):
 
     def setup(self, debug: bool = False):
         """Configure the API Web Server."""
-        # start keyboard listener
-        kl = Thread(target=self.keyboard_listener, name='KeyboardListener', daemon=True)
-        kl.start()
-
         # start message broker listener
         self.message_broker_listen()
 

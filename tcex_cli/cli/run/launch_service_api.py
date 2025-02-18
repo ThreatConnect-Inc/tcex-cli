@@ -1,4 +1,5 @@
 """TcEx Framework Module"""
+
 # standard library
 import datetime
 import json
@@ -228,10 +229,6 @@ class LaunchServiceApi(LaunchServiceCommonABC):
         """Configure the API Web Server."""
         # setup web server
         self.api_web_server.setup()
-
-        # start keyboard listener
-        kl = Thread(target=self.keyboard_listener, name='KeyboardListener', daemon=True)
-        kl.start()
 
         # start thread to listen for on connect
         self.message_broker_listen()

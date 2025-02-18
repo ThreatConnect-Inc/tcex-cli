@@ -1,9 +1,14 @@
 """TcEx Framework Module"""
-# standard library
-from typing import Any
 
 # third-party
-from pydantic import BaseModel
+from pydantic import BaseModel, Extra
+
+# first-party
+from tcex_cli.cli.run.model.common_model import CommonModel
+
+
+class InputsModel(CommonModel, extra=Extra.allow):
+    """InputsModel"""
 
 
 class StageModel(BaseModel):
@@ -17,4 +22,4 @@ class CommonAppInputModel(BaseModel):
 
     stage: StageModel
     trigger_inputs: list[dict] = []
-    inputs: Any
+    inputs: InputsModel

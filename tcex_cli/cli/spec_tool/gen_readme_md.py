@@ -339,6 +339,11 @@ class GenReadmeMd(CliABC):
                 return True
         return False
 
+    def _add_minimum_tc_version(self, readme_md: list[str]):
+        """Add valid values data to readme.md."""
+        readme_md.append(self._markdown_header2('Minimum ThreatConnect Version'))
+        readme_md.append(f'\n**{self.asy.model.min_server_version}**\n')
+
     def generate(self) -> list[str]:
         """Generate the README.md file data."""
         readme_md = []
@@ -346,6 +351,9 @@ class GenReadmeMd(CliABC):
         # add App Name
         readme_md.append(self._markdown_header1(self.asy.model.display_name))
         readme_md.append('')
+
+        # add Minimum ThreatConnect Version
+        self._add_minimum_tc_version(readme_md)
 
         # add release notes
         readme_md.extend(self.asy.model.release_notes_formatted)

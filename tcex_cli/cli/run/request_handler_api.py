@@ -1,4 +1,5 @@
 """TcEx Framework Module"""
+
 # standard library
 import http.server
 import json
@@ -82,7 +83,7 @@ class RequestHandlerApi(http.server.BaseHTTPRequestHandler):
         content_length = int(self.headers.get('content-length', 0))
         if content_length:
             body = self.rfile.read(content_length)
-            self.server.redis_client.hset(request_key, 'request.body', body)
+            self.server.redis_client.hset(request_key, 'request.body', body.decode())
         request_url = self.headers.get('Host', self.server.inputs.server_url)
         if request_url and not request_url.startswith(('http://', 'https://')):
             request_url = f'https://{request_url}'
@@ -146,7 +147,7 @@ class RequestHandlerApi(http.server.BaseHTTPRequestHandler):
         # body
         body = self.server.redis_client.hget(response['requestKey'], 'response.body')
         if body is not None:
-            self.wfile.write(body)
+            self.wfile.write(body)  # type: ignore
 
     def call_service(self, method: str):  # pylint: disable=useless-return
         """Call the API Service
@@ -167,7 +168,7 @@ class RequestHandlerApi(http.server.BaseHTTPRequestHandler):
         )
 
         # block for x seconds
-        event.wait(60)
+        event.wait(300)
         response: dict = self.server.active_responses.pop(request_key, None)
 
         self._build_response(response=response)
@@ -181,6 +182,10 @@ class RequestHandlerApi(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle GET method."""
         return self.call_service('GET')
+
+    def do_OPTIONS(self):
+        """Handle OPTIONS method."""
+        return self.call_service('OPTIONS')
 
     def do_PATCH(self):
         """Handle PATCH method."""

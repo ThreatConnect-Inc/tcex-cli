@@ -5,6 +5,7 @@ import fnmatch
 import json
 import os
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 # first-party
@@ -13,6 +14,7 @@ from tcex_cli.cli.cli_abc import CliABC
 from tcex_cli.cli.model.app_metadata_model import AppMetadataModel
 from tcex_cli.cli.model.validation_data_model import ValidationDataModel
 from tcex_cli.pleb.cached_property import cached_property
+from tcex_cli.render.render import Render
 
 
 class PackageCli(CliABC):
@@ -30,6 +32,7 @@ class PackageCli(CliABC):
         self.output_dir = output_dir
 
         # properties
+        self.start_time: datetime
         self.app_metadata: AppMetadataModel
         self.validation_data: ValidationDataModel
 
@@ -38,11 +41,10 @@ class PackageCli(CliABC):
         """Return a list of files and folders that should be excluded during the build process."""
         # glob files/directories
         return [
-            '__pycache__',
-            '.pytest_cache',  # pytest cache directory
-            '*.iml',  # PyCharm files
-            '*.pyc',  # any pyc file
-            '*.zip',  # any zip file
+            '**/__pycache__/**',
+            '**/*.iml',  # PyCharm files
+            '**/*.pyc',  # any pyc file
+            '**/*.zip',  # any zip file
         ]
 
     @cached_property
@@ -51,11 +53,13 @@ class PackageCli(CliABC):
         # base directory files/directories
         excludes = [
             self.output_dir,
+            '__pycache__/**',
             '.cache',  # local cache directory
             '.c9',  # C9 IDE
             '.coverage',  # coverage file
             '.coveragerc',  # coverage configuration file file
             '.cspell',  # cspell configuration file
+            '.DS_Store',  # macOS directory
             '.env',  # local environment file
             '.git',  # git directory
             '.gitignore',  # git ignore file
@@ -64,8 +68,12 @@ class PackageCli(CliABC):
             '.history',  # vscode history plugin
             '.idea',  # PyCharm
             '.pre-commit-config.yaml',  # pre-commit configuration file
+            '.prettierignore',  # prettier ignore file
+            '.prettierrc.json',  # prettier configuration file
             '.prettierrc.toml',  # prettier configuration file
+            '.pytest_cache/**',  # pytest cache directory
             '.python-version',  # pyenv
+            '.ruff_cache/**',  # ruff cache directory
             '.template_manifest.json',  # template manifest file
             '.vscode',  # Visual Studio Code
             'angular.json',  # angular configuration file
@@ -80,6 +88,8 @@ class PackageCli(CliABC):
             'JIRA.html',  # documentation file
             'JIRA.md',  # documentation file
             'karma.conf.js',  # karma configuration file
+            'mappings/projects',  # transform builder project mappings
+            'mappings/source',  # transform builder source input files
             'package-lock.json',  # npm package lock file
             'package.json',  # npm package file
             'pyproject.toml',  # project configuration file
@@ -102,17 +112,20 @@ class PackageCli(CliABC):
 
     def exclude_files(self, src: str, names: list):
         """Ignore exclude files in shutil.copytree (callback)."""
-        exclude_list = self._build_excludes_glob
-        if src == os.getcwd():
-            # get excludes that are specific to the Apps base directory
-            exclude_list = self._build_excludes_base
+        exclude_list = self._build_excludes_glob + self._build_excludes_base
 
-        excluded_files = []
-        for n in names:
-            for e in exclude_list:
-                if fnmatch.fnmatch(n, e):
-                    excluded_files.append(n)
-        return excluded_files
+        cwd = os.getcwd() + os.sep
+        ignored_names = set()
+        for pattern in exclude_list:
+            for name in names:
+                n = os.path.join(src, name)
+                n = n.replace(cwd, '')
+                if fnmatch.fnmatch(n, pattern):
+                    ignored_names.add(name)
+                elif fnmatch.fnmatch(n + '/', pattern):
+                    ignored_names.add(name)
+                    print(f'ignoring dir: {n}')
+        return ignored_names
 
     def interactive_output(self):
         """[App Builder] Print JSON output containing results of the package command."""
@@ -128,7 +141,15 @@ class PackageCli(CliABC):
     def package(self):
         """Build the App package for deployment to ThreatConnect Exchange."""
         # copy project directory to temp location to use as template for multiple builds
-        shutil.copytree(self.app_path, self.template_fqpn, False, ignore=self.exclude_files)
+        with Render.progress_bar_deps() as progress:
+            progress.add_task('Creating Template', total=None)
+            shutil.copytree(
+                src=self.app_path,
+                dst=self.template_fqpn,
+                symlinks=False,
+                copy_function=shutil.copy2,
+                ignore=self.exclude_files,
+            )
 
         # IMPORTANT:
         # The name of the folder in the zip is the *key* for an App. This
@@ -145,7 +166,10 @@ class PackageCli(CliABC):
         if os.access(app_path_fqpn, os.W_OK):
             # cleanup any previous failed builds
             shutil.rmtree(app_path_fqpn)
-        shutil.copytree(self.template_fqpn, app_path_fqpn)
+
+        with Render.progress_bar_deps() as progress:
+            progress.add_task('Copying Template', total=None)
+            shutil.copytree(self.template_fqpn, app_path_fqpn)
 
         # load template install json
         ij_template = InstallJson(path=app_path_fqpn)
@@ -157,17 +181,20 @@ class PackageCli(CliABC):
         # zip file
         package_name = self.zip_file(self.app_path, app_name_version, self.build_fqpn)
 
-        # create app metadata for output
-        self.app_metadata = AppMetadataModel(
-            name=self.app.tj.model.package.app_name,
-            package_name=package_name,
-            template_directory=self.template_fqpn.name,
-            version=str(self.app.ij.model.program_version),
-            features=', '.join(ij_template.model.features),
-        )
-
         # cleanup build directory
         shutil.rmtree(app_path_fqpn)
+
+        # create app metadata for output
+        runtime = datetime.now() - self.start_time
+        self.app_metadata = AppMetadataModel(
+            features=', '.join(ij_template.model.features),
+            name=self.app.tj.model.package.app_name,
+            package_name=package_name,
+            package_size=f'{round(os.path.getsize(package_name) / 1024 / 1024, 2)} MB',
+            package_time=f'{round(runtime.seconds, 2)} seconds',
+            template_directory=self.template_fqpn.name,
+            version=str(self.app.ij.model.program_version),
+        )
 
     @cached_property
     def template_fqpn(self) -> Path:
@@ -189,8 +216,9 @@ class PackageCli(CliABC):
         # zip build directory
         zip_fqpn = app_path / self.output_dir / app_name
 
-        # create App package
-        shutil.make_archive(str(zip_fqpn), format='zip', root_dir=tmp_path, base_dir=app_name)
+        with Render.progress_bar_deps() as progress:
+            progress.add_task('Packaging App', total=None)
+            shutil.make_archive(str(zip_fqpn), format='zip', root_dir=tmp_path, base_dir=app_name)
 
         # rename the app swapping .zip for .tcx, some filename have "v1.0" which causes
         # the extra dot to be treated as an extension in pathlib.

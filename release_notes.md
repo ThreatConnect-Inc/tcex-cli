@@ -1,5 +1,17 @@
 # Release Notes
 
+## 1.0.4
+
+-   APP-4563 - [SPEC-TOOL] Added Minimum Server Version to the README.md
+-   APP-4661 - [MIGRATE] Added new patterns to migrate for TcEx 2 to TcEx 4
+-   APP-4662 - [SPEC-TOOL] Fixed issue for Boolean type in spec-tool
+-   APP-4663 - [SPEC-TOOL] Updated install.json generation to support service field for service Apps
+-   APP-4689 - [DEPS] Added support for "uv"
+-   APP-4690 - [SPEC-TOOL] Updated app_inputs.py gen to support Annotated typing
+-   APP-4720 - [PACKAGE] Added new patterns and updated filtering logic
+-   APP-4721 - [RUN] Removed keyboard shortcuts
+-   APP-4722 - [RUN] Added fake Redis server (only starts if Redis is not running)
+
 ## 1.0.3
 
 -   APP-4397 - [PACKAGE] Updated feature generation logic to make runtimeVariable on be added for Playbook Apps

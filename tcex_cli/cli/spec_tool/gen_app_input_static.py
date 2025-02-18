@@ -288,59 +288,79 @@ class GenAppInputStatic:
         """Return input map."""
         return {
             'Any': {
-                'optional': {'type': 'Any', 'field_type': None},
-                'required': {'type': 'Any', 'field_type': None},
+                'optional': {'type': 'Any', 'field_type': []},
+                'required': {'type': 'Any', 'field_type': []},
             },
             'Binary': {
-                'optional': {'type': 'Binary', 'field_type': 'Binary'},
-                'required': {'type': 'binary(allow_empty=False)', 'field_type': 'binary'},
+                'optional': {'type': 'Binary', 'field_type': ['Binary']},
+                'required': {
+                    'annotated': True,
+                    'type': 'Annotated[Binary, binary(allow_empty=False)]',
+                    'field_type': ['Binary', 'binary'],
+                },
             },
             'BinaryArray': {
-                'optional': {'type': 'list[Binary]', 'field_type': 'Binary'},
-                'required': {'type': 'list[binary(allow_empty=False)]', 'field_type': 'binary'},
+                'optional': {'type': 'list[Binary]', 'field_type': ['Binary']},
+                'required': {
+                    'annotated': True,
+                    'type': 'list[Annotated[Binary, binary(allow_empty=False)]]',
+                    'field_type': ['Binary', 'binary'],
+                },
             },
             'Choice': {
-                'optional': {'type': 'Choice', 'field_type': 'Choice'},
-                'required': {'type': 'Choice', 'field_type': 'Choice'},
+                'optional': {'type': 'Choice', 'field_type': ['Choice']},
+                'required': {'type': 'Choice', 'field_type': ['Choice']},
             },
             'EditChoice': {
-                'optional': {'type': 'EditChoice', 'field_type': 'EditChoice'},
-                'required': {'type': 'EditChoice', 'field_type': 'EditChoice'},
+                'optional': {'type': 'EditChoice', 'field_type': ['EditChoice']},
+                'required': {'type': 'EditChoice', 'field_type': ['EditChoice']},
             },
             'Encrypt': {
-                'optional': {'type': 'Sensitive', 'field_type': 'Sensitive'},
-                'required': {'type': 'sensitive(allow_empty=False)', 'field_type': 'sensitive'},
+                'optional': {'type': 'Sensitive', 'field_type': ['Sensitive']},
+                'required': {
+                    'annotated': True,
+                    'type': 'Annotated[Sensitive, sensitive(allow_empty=False)]',
+                    'field_type': ['Sensitive', 'sensitive'],
+                },
             },
             'KeyValue': {
-                'optional': {'type': 'KeyValue', 'field_type': 'KeyValue'},
-                'required': {'type': 'KeyValue', 'field_type': 'KeyValue'},
+                'optional': {'type': 'KeyValue', 'field_type': ['KeyValue']},
+                'required': {'type': 'KeyValue', 'field_type': ['KeyValue']},
             },
             'KeyValueArray': {
-                'optional': {'type': 'list[KeyValue]', 'field_type': 'KeyValue'},
-                'required': {'type': 'list[KeyValue]', 'field_type': 'KeyValue'},
+                'optional': {'type': 'list[KeyValue]', 'field_type': ['KeyValue']},
+                'required': {'type': 'list[KeyValue]', 'field_type': ['KeyValue']},
             },
             'KeyValueList': {
-                'optional': {'type': 'list[KeyValue]', 'field_type': 'KeyValue'},
-                'required': {'type': 'list[KeyValue]', 'field_type': 'KeyValue'},
+                'optional': {'type': 'list[KeyValue]', 'field_type': ['KeyValue']},
+                'required': {'type': 'list[KeyValue]', 'field_type': ['KeyValue']},
             },
             'MultiChoice': {
-                'optional': {'type': 'list[Choice]', 'field_type': 'Choice'},
-                'required': {'type': 'list[Choice]', 'field_type': 'Choice'},
+                'optional': {'type': 'list[Choice]', 'field_type': ['Choice']},
+                'required': {'type': 'list[Choice]', 'field_type': ['Choice']},
             },
             'String': {
-                'optional': {'type': 'String', 'field_type': 'String'},
-                'required': {'type': 'string(allow_empty=False)', 'field_type': 'string'},
+                'optional': {'type': 'String', 'field_type': ['String']},
+                'required': {
+                    'annotated': True,
+                    'type': 'Annotated[String, string(allow_empty=False)]',
+                    'field_type': ['String', 'string'],
+                },
             },
             'StringArray': {
-                'optional': {'type': 'list[String]', 'field_type': 'String'},
-                'required': {'type': 'list[string(allow_empty=False)]', 'field_type': 'string'},
+                'optional': {'type': 'list[String]', 'field_type': ['String']},
+                'required': {
+                    'annotated': True,
+                    'type': 'list[Annotated[String, string(allow_empty=False)]]',
+                    'field_type': ['String', 'string'],
+                },
             },
             'TCEntity': {
-                'optional': {'type': 'TCEntity', 'field_type': 'TCEntity'},
-                'required': {'type': 'TCEntity', 'field_type': 'TCEntity'},
+                'optional': {'type': 'TCEntity', 'field_type': ['TCEntity']},
+                'required': {'type': 'TCEntity', 'field_type': ['TCEntity']},
             },
             'TCEntityArray': {
-                'optional': {'type': 'list[TCEntity]', 'field_type': 'TCEntity'},
-                'required': {'type': 'list[TCEntity]', 'field_type': 'TCEntity'},
+                'optional': {'type': 'list[TCEntity]', 'field_type': ['TCEntity']},
+                'required': {'type': 'list[TCEntity]', 'field_type': ['TCEntity']},
             },
         }

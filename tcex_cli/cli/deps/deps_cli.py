@@ -1,10 +1,12 @@
 """TcEx Framework Module"""
+
 # standard library
 import logging
 import os
 import shutil
 import subprocess  # nosec
 import sys
+from datetime import UTC, datetime
 from functools import cached_property
 from importlib.metadata import version as get_version
 from pathlib import Path
@@ -59,27 +61,47 @@ class DepsCli(CliABC):
         self.requirements_lock_tests = self.app_path / 'tests' / 'requirements.lock'
         self.requirements_txt = self.app_path / 'requirements.txt'
         self.requirements_txt_tests = self.app_path / 'tests' / 'requirements.txt'
+        self.start_time = datetime.now(tz=UTC)
 
         # update tcex.json
         self.app.tj.update.multiple()
 
     def _build_command(self, deps_dir: Path, requirements_file: Path) -> list[str]:
         """Build the pip command for installing dependencies."""
+        tool = 'pip'
 
-        exe_command = [
-            str(self.python_executable),
-            '-m',
-            'pip',
-            'install',
-            '-r',
-            str(requirements_file),
-            '--ignore-installed',
-            '--quiet',
-            '--target',
-            deps_dir.name,
-        ]
+        uv_executable = shutil.which('uv')
+        if uv_executable and self.is_executable(Path(uv_executable)):
+            tool = 'uv'
+            exe_command = [
+                uv_executable,
+                'pip',
+                'install',
+            ]
+        else:
+            exe_command = [
+                str(self.python_executable),
+                '-m',
+                'pip',
+                'install',
+                '--ignore-installed',
+            ]
+
+        exe_command.extend(
+            [
+                '-r',
+                str(requirements_file),
+                '--quiet',
+                '--target',
+                deps_dir.name,
+            ]
+        )
+
         if self.no_cache_dir:
-            exe_command.append('--no-cache-dir')
+            if tool == 'pip':
+                exe_command.append('--no-cache-dir')
+            elif tool == 'uv':
+                exe_command.append('--no-cache')
             self.output.append(KeyValueModel(key='Allow cached-dir Release', value='False'))
         if self.pre:
             exe_command.append('--pre')
@@ -105,6 +127,22 @@ class DepsCli(CliABC):
             _env.update({'CI_JOB_TOKEN': ci_token})
 
         return _env
+
+    @staticmethod
+    def is_executable(executable: Path):
+        """Check if a file exists and is executable, then attempts to run it."""
+        if executable.is_file() and os.access(executable, os.X_OK):
+            try:
+                subprocess.run(  # nosec
+                    [executable, '--help'],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                return True
+            except subprocess.CalledProcessError:
+                return False
+        return False
 
     def _remove_previous(self, path: Path):
         """Remove previous deps directory recursively."""
@@ -262,6 +300,11 @@ class DepsCli(CliABC):
                 else:
                     contents = self.requirements_lock_contents(self.deps_dir_tests)
                     self.create_requirements_lock(contents, self.requirements_lock_tests)
+
+        runtime = datetime.now(tz=UTC) - self.start_time
+        self.output.append(
+            KeyValueModel(key='Total Runtime', value=f'{round(runtime.seconds, 2)}s')
+        )
 
     @cached_property
     def python_executable(self) -> Path:

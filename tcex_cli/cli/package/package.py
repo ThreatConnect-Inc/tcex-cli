@@ -1,6 +1,7 @@
 """TcEx Framework Module"""
 
 # standard library
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -45,6 +46,8 @@ def command(
     """
     excludes_ = [e.strip() for e in excludes.split(',') if e]
 
+    start_time = datetime.now()
+
     cli_v = ValidateCli(ignore_validation)
     try:
 
@@ -73,6 +76,7 @@ def command(
 
         # package App
         run = PackageCli(excludes_, ignore_validation, output_dir)
+        run.start_time = start_time
         run.validation_data = cli_v.validation_data
         run.package()
         if json_output:

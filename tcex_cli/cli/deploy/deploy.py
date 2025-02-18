@@ -17,7 +17,11 @@ StrOrNone = Optional[str]
 
 
 def command(
-    server: str = typer.Argument(..., envvar='TC_DEPLOY_SERVER'),
+    server: str = typer.Argument(
+        ...,
+        envvar='TC_DEPLOY_SERVER',
+        help='Can be defined as an environment variable to avoid passing in each time.',
+    ),
     allow_all_orgs: bool = typer.Option(True, help='If true all orgs are able to use the App.'),
     allow_distribution: bool = typer.Option(
         True, help='If true the App is allowed to be distributed.'
@@ -33,13 +37,10 @@ def command(
 ):
     """CLI command for deploying Apps to ThreatConnect Exchange.
 
-    This command REQUIRES the following environment variables to be set.
-
-    * TC_API_PATH
-    * TC_API_ACCESS_ID
-    * TC_API_SECRET_KEY
-
-    Optional environment variables include:\n
+    This command REQUIRES the following environment variables to be set.\n\n\n
+    * TC_API_ACCESS_ID\n
+    * TC_API_SECRET_KEY\n\n\n
+    Optional environment variables include:\n\n\n
     * PROXY_HOST\n
     * PROXY_PORT\n
     * PROXY_USER\n

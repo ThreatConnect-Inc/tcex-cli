@@ -1,4 +1,5 @@
 """TcEx Framework Module"""
+
 # standard library
 from pathlib import PosixPath
 
@@ -26,7 +27,7 @@ class AppPlaybookModel(CommonModel, PlaybookCommonModel, PlaybookModel):
         case_sensitive = False
         env_file = '.env'
         env_file_encoding = 'utf-8'
-        json_encoders = {PosixPath: lambda v: 'testing', Sensitive: lambda v: v.value}
+        json_encoders = {PosixPath: lambda v: str(v), Sensitive: lambda v: v.value}
         validate_assignment = True
 
 

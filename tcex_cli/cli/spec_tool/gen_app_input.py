@@ -1,4 +1,5 @@
 """TcEx Framework Module"""
+
 # standard library
 import logging
 import os
@@ -10,6 +11,7 @@ from tcex_cli.cli.cli_abc import CliABC
 from tcex_cli.cli.spec_tool.gen_app_input_static import GenAppInputStatic
 from tcex_cli.pleb.cached_property import cached_property
 from tcex_cli.render.render import Render
+from tcex_cli.util import Util
 from tcex_cli.util.code_operation import CodeOperation
 
 # get logger
@@ -182,6 +184,7 @@ class GenAppInput(CliABC):
         else:
             # Process the following App types:
             # - Playbook App with layout.json and tc_action input
+            self.pydantic_modules.add('BaseModel')
             for tc_action in self._tc_actions:
                 if tc_action == 'Advanced Request':
                     # AdvancedRequestModel is included in tcex
@@ -264,6 +267,9 @@ class GenAppInput(CliABC):
         # get the type value and field type
         type_: str
         if standard_name_type is not None:
+            if standard_name_type.get('annotated') is True:
+                self.typing_modules.add('Annotated')
+
             type_ = standard_name_type['type']
             field_types.append(standard_name_type.get('field_type'))
         elif input_data.type == 'Boolean':
@@ -278,8 +284,12 @@ class GenAppInput(CliABC):
             )
         else:
             try:
-                type_ = self.input_static.type_map[lookup_key][required_key]['type']
-                field_types = [self.input_static.type_map[lookup_key][required_key]['field_type']]
+                data = self.input_static.type_map[lookup_key][required_key]
+                if data.get('annotated') is True:
+                    self.typing_modules.add('Annotated')
+
+                type_ = data['type']
+                field_types = data['field_type']
             except (AttributeError, KeyError) as ex:
                 Render.panel.failure(f'Failed looking up type data for {input_data.type} ({ex}).')
 
@@ -289,7 +299,7 @@ class GenAppInput(CliABC):
 
         # append default if one exists
         if input_data.type == 'Boolean':
-            type_ += f' = {input_data.default or False}'
+            type_ += f' = {Util.to_bool(input_data.default)}'
 
         return type_, field_types
 
@@ -342,18 +352,18 @@ class GenAppInput(CliABC):
             self.typing_modules.add('Any')
 
         if len(playbook_data_types) == 1:
-            _field_types = [
-                self.input_static.type_map[playbook_data_types[0]][required_key]['field_type']
-            ]
-            _types = self.input_static.type_map[playbook_data_types[0]][required_key]['type']
+            data = self.input_static.type_map[playbook_data_types[0]][required_key]
+            _field_types = data['field_type']
+            if data.get('annotated'):
+                self.typing_modules.add('Annotated')
+            _types = data['type']
         else:
             _types = []
             _field_types = []
             for lookup_key in playbook_data_types:
-                _field_types.append(
-                    self.input_static.type_map[lookup_key][required_key]['field_type']
-                )
-                _types.append(self.input_static.type_map[lookup_key][required_key]['type'])
+                data = self.input_static.type_map[lookup_key][required_key]
+                _field_types.extend(data['field_type'])
+                _types.append(data['type'])
             _types = f'''{' | '.join(_types)}'''
 
         return _types, _field_types
@@ -375,12 +385,12 @@ class GenAppInput(CliABC):
             types = type_definition.replace(needle, '').strip().split(', ')
         return set(types)
 
-    @staticmethod
-    def _standard_field_to_type_map(input_name: str) -> dict | None:
+    def _standard_field_to_type_map(self, input_name: str) -> dict | None:
         """Return the type for "standard" input fields."""
         _field_name_to_type_map = {
             'confidence_rating': {
-                'type': 'integer(ge=0, le=100)',
+                'annotated': True,
+                'type': 'Annotated[int, integer(ge=0, le=100)]',
                 'field_type': 'integer',
             },
             'last_run': {
@@ -392,11 +402,13 @@ class GenAppInput(CliABC):
                 'field_type': 'DateTime',
             },
             'poll_interval': {
-                'type': 'integer(gt=0)',
+                'annotated': True,
+                'type': 'Annotated[int, integer(gt=0)]',
                 'field_type': 'integer',
             },
             'threat_rating': {
-                'type': 'integer(ge=0, le=5)',
+                'annotated': True,
+                'type': 'Annotated[int, integer(ge=0, le=5)]',
                 'field_type': 'integer',
             },
         }

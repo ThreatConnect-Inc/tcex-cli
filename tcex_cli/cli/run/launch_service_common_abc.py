@@ -1,12 +1,6 @@
 """TcEx Framework Module"""
 
 # standard library
-import atexit
-import json
-import os
-import sys
-import termios
-import tty
 from abc import ABC
 from pathlib import Path
 from threading import Event, Thread
@@ -34,60 +28,6 @@ class LaunchServiceCommonABC(LaunchABC, ABC):
         self.display_thread: Thread
         self.message_data: list[dict[str, str]] = []
         self.stop_server = False
-        self.stored_keyboard_settings = None
-
-        # reset keyboard listener on exit
-        atexit.register(self.keyboard_listener_reset)
-
-    def keyboard_listener(self):
-        """Listen for keyboard input."""
-        while True:
-            key = self.keyboard_listener_get_key()
-            match key:
-                case 'q' | 'esc':
-                    self.log.error('Shutting down app.')
-                    self.publish(
-                        json.dumps({'appId': 95, 'command': 'Shutdown'}),
-                        self.model.inputs.tc_svc_server_topic,
-                    )
-
-                # case _:
-                #     self.log.error(f'Unknown key: {key}')
-
-    def keyboard_listener_get_key(self):
-        """Return key value."""
-        key_mapping = {
-            9: 'tab',
-            10: 'return',
-            27: 'esc',
-            32: 'space',
-            65: 'up',
-            66: 'down',
-            67: 'right',
-            68: 'left',
-            127: 'backspace',
-        }
-
-        self.stored_keyboard_settings = termios.tcgetattr(sys.stdin)
-        tty.setcbreak(sys.stdin.fileno())
-        try:
-            while True:
-                b = os.read(sys.stdin.fileno(), 3).decode()
-                if len(b) == 3:
-                    k = ord(b[2])
-                else:
-                    k = ord(b)
-                return key_mapping.get(k, chr(k))
-        finally:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.stored_keyboard_settings)
-
-    def keyboard_listener_reset(self):
-        """Reset the keyboard"""
-        try:
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.stored_keyboard_settings)
-        except Exception:  # nosec
-            # ignore errors for now
-            pass
 
     def live_data_commands(self):
         """Display live data."""
@@ -120,9 +60,9 @@ class LaunchServiceCommonABC(LaunchABC, ABC):
     def message_broker(self):
         """Return an instance of the Message Broker."""
         broker = MqttMessageBroker(
-            self.model.inputs.tc_svc_broker_host,
-            self.model.inputs.tc_svc_broker_port,
-            self.model.inputs.tc_svc_broker_timeout,
+            self.model.inputs.tc_svc_broker_host,  # type: ignore
+            self.model.inputs.tc_svc_broker_port,  # type: ignore
+            self.model.inputs.tc_svc_broker_timeout,  # type: ignore
         )
         broker.register_callbacks()
         return broker
@@ -138,8 +78,8 @@ class LaunchServiceCommonABC(LaunchABC, ABC):
     def on_connect(self, client: mqtt.Client, userdata, flags, rc: int):
         """Handle message broker on_connect events."""
         # subscribe to topics
-        self.message_broker.client.subscribe(self.model.inputs.tc_svc_client_topic)
-        self.message_broker.client.subscribe(self.model.inputs.tc_svc_server_topic)
+        self.message_broker.client.subscribe(self.model.inputs.tc_svc_client_topic)  # type: ignore
+        self.message_broker.client.subscribe(self.model.inputs.tc_svc_server_topic)  # type: ignore
         self.log.info('Connected to message broker and subscribing to client topic.')
 
     def publish(self, message: str, topic: str):

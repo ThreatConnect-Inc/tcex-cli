@@ -7,6 +7,7 @@ from pathlib import Path
 
 # third-party
 import typer
+from dotenv import load_dotenv
 from semantic_version import Version
 
 # first-party
@@ -19,6 +20,8 @@ from tcex_cli.cli.spec_tool import spec_tool
 from tcex_cli.cli.template import init, list_, update
 from tcex_cli.cli.validate import validate
 from tcex_cli.render.render import Render
+
+load_dotenv()
 
 
 def add_test_command():

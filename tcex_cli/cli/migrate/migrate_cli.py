@@ -126,7 +126,12 @@ class MigrateCli(CliABC):
     @property
     def _tcex_code_replacements(self):
         """Replace TcEx code."""
+
         return {
+            r'self\.args': {
+                'replacement': 'self.in_',
+                'in_file': ['app.py'],  # replacement only works in app.py
+            },
             r'self\.ij\.model': {
                 'replacement': 'self.tcex.app.ij.model',
             },
@@ -136,6 +141,10 @@ class MigrateCli(CliABC):
             },
             r'self\.playbook\.output\.create\.variable\(': {
                 'replacement': 'self.out.variable(',
+                'in_file': ['app.py'],  # replacement only works in app.py
+            },
+            r'self\.tcex\.app\.playbook\.create_output': {
+                'replacement': 'self.out.variables',
                 'in_file': ['app.py'],  # replacement only works in app.py
             },
             r'self\.tcex\.file_operations\.': {
@@ -163,6 +172,10 @@ class MigrateCli(CliABC):
             },
             r'self\.tcex\.log\.': {
                 'replacement': 'self.log.',
+                'in_file': ['app.py'],  # replacement only works in app.py
+            },
+            r'self\.tcex\.playbook.create_output': {
+                'replacement': 'self.out.variable',
                 'in_file': ['app.py'],  # replacement only works in app.py
             },
             r'self\.tcex\.playbook.create.variable\(': {
