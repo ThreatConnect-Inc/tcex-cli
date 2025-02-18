@@ -22,6 +22,7 @@ dependencies = [
   "arrow",
   "black",
   "debugpy",
+  "fakeredis",
   "inflection",
   "isort",
   "paho-mqtt<2.0.0",
