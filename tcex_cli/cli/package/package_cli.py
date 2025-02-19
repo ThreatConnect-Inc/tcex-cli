@@ -124,7 +124,6 @@ class PackageCli(CliABC):
                     ignored_names.add(name)
                 elif fnmatch.fnmatch(n + '/', pattern):
                     ignored_names.add(name)
-                    print(f'ignoring dir: {n}')
         return ignored_names
 
     def interactive_output(self):
