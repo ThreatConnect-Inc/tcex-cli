@@ -25,6 +25,7 @@ dependencies = [
   "fakeredis",
   "inflection",
   "isort",
+  "jmespath",
   "paho-mqtt<2.0.0",
   "pyaes",
   "pydantic<2.0.0",
