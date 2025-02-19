@@ -1,4 +1,5 @@
 """Run App Local"""
+
 # pylint: disable=wrong-import-position
 
 # first-party
