@@ -75,6 +75,7 @@ class PackageCli(CliABC):
             '.python-version',  # pyenv
             '.ruff_cache/**',  # ruff cache directory
             '.template_manifest.json',  # template manifest file
+            '.venv',  # virtual environment directory
             '.vscode',  # Visual Studio Code
             'angular.json',  # angular configuration file
             'app.yaml',  # requirements builder configuration file
@@ -116,14 +117,16 @@ class PackageCli(CliABC):
 
         cwd = os.getcwd() + os.sep
         ignored_names = set()
-        for pattern in exclude_list:
-            for name in names:
+        for name in names:
+            for pattern in exclude_list:
                 n = os.path.join(src, name)
                 n = n.replace(cwd, '')
                 if fnmatch.fnmatch(n, pattern):
                     ignored_names.add(name)
-                elif fnmatch.fnmatch(n + '/', pattern):
+                    break
+                if fnmatch.fnmatch(n + '/', pattern):
                     ignored_names.add(name)
+                    break
         return ignored_names
 
     def interactive_output(self):
@@ -217,12 +220,14 @@ class PackageCli(CliABC):
 
         with Render.progress_bar_deps() as progress:
             progress.add_task('Packaging App', total=None)
+            zip_fqpn.unlink(missing_ok=True)  # for windows, remove the file if it exists
             shutil.make_archive(str(zip_fqpn), format='zip', root_dir=tmp_path, base_dir=app_name)
 
         # rename the app swapping .zip for .tcx, some filename have "v1.0" which causes
         # the extra dot to be treated as an extension in pathlib.
         zip_fqfn = app_path / self.output_dir / f'{app_name}.zip'
         tcx_fqfn = app_path / self.output_dir / f'{app_name}.tcx'
+        tcx_fqfn.unlink(missing_ok=True)  # for windows, remove the file if it exists
         zip_fqfn.rename(tcx_fqfn)
 
         # update package data
