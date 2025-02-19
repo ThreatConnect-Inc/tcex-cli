@@ -127,5 +127,5 @@ class LaunchServiceCommonTriggersABC(LaunchServiceCommonABC, ABC):
                         'config': t_input,
                     }
                 ),
-                self.model.inputs.tc_svc_server_topic,
+                self.model.inputs.tc_svc_server_topic,  # type: ignore
             )

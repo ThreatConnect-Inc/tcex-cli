@@ -3,7 +3,6 @@
 # standard library
 import os
 import sys
-import threading
 from pathlib import Path
 
 # first-party
@@ -71,12 +70,7 @@ class RunCli(CliABC):
     def exit_cli(self, exit_code):
         """Exit the CLI command."""
         Render.panel.info(f'{exit_code}', f'[{self.panel_title}]Exit Code[/]')
-
-        def exit_with_timeout(exit_code):
-            threading.Timer(2.0, os._exit, args=(exit_code,)).start()
-            sys.exit(exit_code)
-
-        exit_with_timeout(exit_code)
+        sys.exit(exit_code)
 
     def run(self, config_json: Path, debug: bool = False):
         """Run the App"""

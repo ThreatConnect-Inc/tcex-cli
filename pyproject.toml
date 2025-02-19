@@ -35,7 +35,7 @@ dependencies = [
   "rich",
   "semantic_version",
   "tinydb",
-  "typer[all]",
+  "typer",
 ]
 description = "ThreatConnect Exchange App CLI Tool"
 dynamic = ["readme", "version"]

@@ -1,4 +1,5 @@
 """TcEx Framework Module"""
+
 # standard library
 import http.server
 import json
@@ -39,7 +40,7 @@ class RequestHandlerWebhook(http.server.BaseHTTPRequestHandler):
         content_length = int(self.headers.get('content-length', 0))
         if content_length:
             body = self.rfile.read(content_length)
-            self.server.redis_client.hset(request_key, 'request.body', body)
+            self.server.redis_client.hset(request_key, 'request.body', body)  # type: ignore
 
         return {
             'appId': 95,
@@ -71,7 +72,7 @@ class RequestHandlerWebhook(http.server.BaseHTTPRequestHandler):
         # body
         body = self.server.redis_client.hget(response['requestKey'], 'response.body')
         if body is not None:
-            self.wfile.write(body)
+            self.wfile.write(body)  # type: ignore
 
     def call_service(self, method: str):  # pylint: disable=useless-return
         """Call the API Service

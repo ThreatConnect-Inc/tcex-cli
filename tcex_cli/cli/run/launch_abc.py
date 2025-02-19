@@ -184,27 +184,25 @@ class LaunchABC(ABC):
             )
             server_address = (server_address, server_port)
             tcp_fake_server = TcpFakeServer(server_address, server_type='redis')
-
+            # probably not required, but behavior is appropriate
+            tcp_fake_server.block_on_close = False
+            # this fixes the issue with the server not shutting down properly
+            tcp_fake_server.daemon_threads = True
             t = Thread(target=tcp_fake_server.serve_forever, daemon=True)
             t.start()
-
-            @atexit.register
-            def server_shutdown():
-                """."""
-                self.log.debug('Shutting down FakeRedis server.')
-                tcp_fake_server.shutdown()
-                t.join(timeout=1)
 
     @cached_property
     def redis_client(self) -> redis.Redis:
         """Return the Redis client."""
-        return redis.Redis(
+        redis_client = redis.Redis(
             connection_pool=redis.ConnectionPool(
                 host=self.model.inputs.tc_kvstore_host,
                 port=self.model.inputs.tc_kvstore_port,
                 db=self.model.inputs.tc_playbook_kvstore_id,
             )
         )
+        atexit.register(redis_client.close)
+        return redis_client
 
     @cached_property
     def session(self) -> TcSession:
