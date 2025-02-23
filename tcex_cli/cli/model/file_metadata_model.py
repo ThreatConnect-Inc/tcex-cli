@@ -4,7 +4,7 @@
 from pathlib import Path
 
 # third-party
-from pydantic import BaseModel, Extra, Field
+from pydantic.v1 import BaseModel, Extra, Field
 
 
 class FileMetadataModel(BaseModel, extra=Extra.allow):

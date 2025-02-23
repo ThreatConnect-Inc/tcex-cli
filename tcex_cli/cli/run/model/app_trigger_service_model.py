@@ -1,7 +1,7 @@
 """TcEx Framework Module"""
 
 # third-party
-from pydantic import Extra
+from pydantic.v1 import Extra
 
 # first-party
 from tcex_cli.cli.run.model.common_app_input_model import CommonAppInputModel

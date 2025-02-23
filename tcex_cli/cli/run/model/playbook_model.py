@@ -4,7 +4,7 @@
 from uuid import uuid4
 
 # third-party
-from pydantic import BaseSettings, Extra
+from pydantic.v1 import BaseSettings, Extra
 
 # first-party
 from tcex_cli.app.config.install_json import InstallJson

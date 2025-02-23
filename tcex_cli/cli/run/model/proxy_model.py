@@ -3,7 +3,7 @@
 # pylint: disable=no-self-argument
 
 # third-party
-from pydantic import BaseSettings, Extra
+from pydantic.v1 import BaseSettings, Extra
 
 # first-party
 from tcex_cli.input.field_type.sensitive import Sensitive

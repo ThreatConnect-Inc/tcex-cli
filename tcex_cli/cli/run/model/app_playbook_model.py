@@ -4,7 +4,7 @@
 from pathlib import PosixPath
 
 # third-party
-from pydantic import Extra
+from pydantic.v1 import Extra
 
 # first-party
 from tcex_cli.app.config import InstallJson

@@ -16,7 +16,7 @@ from threading import Thread
 # third-party
 import redis
 from fakeredis import TcpFakeServer
-from pydantic import BaseModel
+from pydantic.v1 import BaseModel
 
 # first-party
 from tcex_cli.cli.run.model.common_app_input_model import CommonAppInputModel
