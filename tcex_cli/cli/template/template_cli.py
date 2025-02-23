@@ -9,7 +9,7 @@ from pathlib import Path
 
 # third-party
 import yaml
-from pydantic import ValidationError
+from pydantic.v1 import ValidationError
 from requests import Response  # TYPE-CHECKING
 from requests import Session
 from requests.auth import HTTPBasicAuth

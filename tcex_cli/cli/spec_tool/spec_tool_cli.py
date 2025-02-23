@@ -6,7 +6,7 @@ import shutil
 import subprocess  # nosec
 
 # third-party
-from pydantic import ValidationError
+from pydantic.v1 import ValidationError
 
 # first-party
 from tcex_cli.app.config import AppSpecYml

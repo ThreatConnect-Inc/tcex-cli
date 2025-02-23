@@ -9,7 +9,7 @@ import traceback
 from pathlib import Path
 
 # third-party
-from pydantic import ValidationError
+from pydantic.v1 import ValidationError
 
 # first-party
 from tcex_cli.app.config.job_json import JobJson

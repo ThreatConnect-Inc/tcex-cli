@@ -3,7 +3,7 @@
 # pylint: disable=no-self-argument
 
 # third-party
-from pydantic import BaseModel, Field, validator
+from pydantic.v1 import BaseModel, Field, validator
 
 from ...app.config.install_json import InstallJson
 from ..field_type.sensitive import Sensitive

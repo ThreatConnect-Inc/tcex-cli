@@ -2,7 +2,7 @@
 
 # pylint: disable=no-self-argument
 # third-party
-from pydantic import BaseModel, validator
+from pydantic.v1 import BaseModel, validator
 from semantic_version import Version
 
 

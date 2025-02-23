@@ -1,7 +1,7 @@
 """TcEx Framework Module"""
 
 # third-party
-from pydantic import BaseSettings, Extra
+from pydantic.v1 import BaseSettings, Extra
 
 
 class LoggingModel(BaseSettings):

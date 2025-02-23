@@ -4,7 +4,7 @@
 from pathlib import Path
 
 # third-party
-from pydantic import BaseSettings, Extra
+from pydantic.v1 import BaseSettings, Extra
 
 
 class PathModel(BaseSettings):
