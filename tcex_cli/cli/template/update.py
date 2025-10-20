@@ -8,6 +8,7 @@ from typing import Optional
 import typer
 
 # first-party
+from tcex_cli.cli.template.tcv_helper import TCVHelper
 from tcex_cli.cli.template.template_cli import TemplateCli
 from tcex_cli.render.render import Render
 
@@ -63,6 +64,19 @@ def command(
         proxy_pass,
     )
     try:
+        if template_type == 'tie' and template_name:
+            tcv_helper = TCVHelper(cli)
+            tcv_helper.update(branch, template_name, template_type)
+            Render.table.key_value(
+                'Initialization Summary',
+                {
+                    'Template Name': template_name,
+                    'Template Type': template_type,
+                    'Branch': branch,
+                },
+            )
+            return
+
         downloads = cli.update(branch, template_name, template_type, force)
         if not downloads:
             Render.panel.info('No files to update.')

@@ -8,6 +8,7 @@ from typing import Optional
 import typer
 
 # first-party
+from tcex_cli.cli.template.tcv_helper import TCVHelper
 from tcex_cli.cli.template.template_cli import TemplateCli
 from tcex_cli.render.render import Render
 
@@ -72,6 +73,19 @@ def command(
         cli.clear()
 
     try:
+        if template_type == 'tie':
+            tcv_helper = TCVHelper(cli)
+            tcv_helper.init(branch, template_name, template_type)
+            Render.table.key_value(
+                'Initialization Summary',
+                {
+                    'Template Name': template_name,
+                    'Template Type': template_type,
+                    'Branch': branch,
+                },
+            )
+            return
+
         Render.panel.info('Installing template files')
         downloads = cli.init(branch, template_name, template_type, app_builder)
         progress = Render.progress_bar_download()
