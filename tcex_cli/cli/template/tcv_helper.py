@@ -1,9 +1,5 @@
-"""Single-file refactor of TCV helper functionality."""
+"""tcex_cli CLI Template TCV Helper Module"""
 
-# single_file_tcv_refactor.py
-# Responsible, testable split with identical behavior preserved.
-
-# standard library
 # standard library
 import contextlib
 import hashlib
@@ -27,7 +23,7 @@ class FileMeta(TypedDict):
     """Metadata for a single file in the manifest."""
 
     last_commit: str
-    md5: str
+    sha256: str
     template_path: str
 
 
@@ -73,14 +69,14 @@ class Plan(BaseModel):
 
 
 class Hasher:
-    """Stable MD5 hashing for files (matching existing behavior)."""
+    """Stable SHA-256 hashing for files."""
 
     @staticmethod
-    def md5_file(path: Path, chunk_size: int = 1024 * 1024) -> str | None:
-        """Return the MD5 hash of a file, or None if the file does not exist."""
+    def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str | None:
+        """Return the SHA-256 hash of a file, or None if the file does not exist."""
         if not path.exists():
             return None
-        h = hashlib.md5()  # nosec
+        h = hashlib.sha256()
         with path.open('rb') as f:
             while True:
                 chunk = f.read(chunk_size)
@@ -265,8 +261,8 @@ class Planner:
                 continue
 
             # File was changed so that it matches the latest_changes or the file was removed.
-            current_hash = self.hasher.md5_file(project_path)
-            if current_hash == template_info['md5'] or current_hash is None:
+            current_hash = self.hasher.sha256_file(project_path)
+            if current_hash == template_info['sha256'] or current_hash is None:
                 plan.skip.append(value)
             # auto update all files tracked in the core or ui dirs
             elif key.startswith(('core/', 'ui/')):
@@ -281,11 +277,11 @@ class Planner:
             plan.template_removed.append(value)
 
             local_info = local_meta[key]
-            current_hash = self.hasher.md5_file(dest / key)
+            current_hash = self.hasher.sha256_file(dest / key)
 
             if current_hash is None:
                 plan.auto_update.append(value)  # already gone; no-op
-            elif current_hash == local_info['md5']:
+            elif current_hash == local_info['sha256']:
                 plan.auto_update.append(value)  # unchanged; auto-remove
             else:
                 plan.prompt_user.append(value)  # changed; confirm removal
@@ -309,7 +305,7 @@ class Planner:
         for local, template in auto_set:
             local_ = project_root / local
             if local in removed_set:
-                self.file_ops.remove_file(project_root / local_)
+                self.file_ops.remove_file(local_)
             else:
                 self.file_ops.copy_from_template(template_root, template, local_)
 
