@@ -224,7 +224,28 @@ class Planner:
     def build(
         self, temp_dest: Path, dest: Path, file_name: str = 'manifest.json', force=False
     ) -> Plan:
-        """Build an update plan by comparing template and main manifests."""
+        """Build an update plan by comparing template and main manifests.
+
+        Syncing logic:
+        1. Load both the remote template manifest and the local project manifest.
+        2. Determine which file keys exist in the template and which were removed.
+        3. For each key still in the template:
+           - If ``force`` is set, auto-update unconditionally.
+           - If the key is absent from the local manifest, it is a new file. Auto-update
+             when the file doesn't exist on disk yet; prompt the user if it already exists
+             (to avoid silently overwriting local work).
+           - If both manifests share the same ``last_commit``, the file is unchanged — skip.
+           - Otherwise, hash the local file and compare:
+             * If the hash already matches the new template or the file is missing, skip
+               (the user already has the latest content or deliberately deleted it).
+             * If the file lives under ``core/`` or ``ui/``, auto-update (these dirs are
+               considered framework-managed).
+             * All other modified files require user confirmation before overwriting.
+        4. For each key removed from the template:
+           - If the local file is already gone or unchanged from the last-known hash,
+             auto-remove (safe cleanup).
+           - If the user has modified the file, prompt before removing.
+        """
         template_meta = self.manifest.load_json(temp_dest / file_name)
         local_meta = self.manifest.load_json(dest / file_name)
 
@@ -314,12 +335,12 @@ class Planner:
             for local, template in sorted(prompt_set):
                 local_ = project_root / local
                 if local in removed_keys:
-                    response = prompt_fn(f"Remove modified file '{local}'? [y/N]: ").strip().lower()
+                    response = prompt_fn(f"Remove modified file '{local}'? [y/N] (default: N): ").strip().lower()
                     if response == 'y':
                         self.file_ops.remove_file(local_)
                 else:
                     response = (
-                        prompt_fn(f"Overwrite modified file '{local}' from template? [y/N]: ")
+                        prompt_fn(f"Overwrite modified file '{local}' from template? [y/N] (default: N): ")
                         .strip()
                         .lower()
                     )
