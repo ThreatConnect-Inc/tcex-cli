@@ -299,12 +299,12 @@ class Planner:
         """Apply the plan. If `force` is False, items in prompt_user will ask for confirmation."""
         auto_set = set(plan.auto_update)
         prompt_set = set(plan.prompt_user)
-        removed_set = set(plan.template_removed)
+        removed_keys = {local for local, _template in plan.template_removed}
 
         # 1) Handle AUTO_UPDATE (copies + removals)
         for local, template in auto_set:
             local_ = project_root / local
-            if local in removed_set:
+            if local in removed_keys:
                 self.file_ops.remove_file(local_)
             else:
                 self.file_ops.copy_from_template(template_root, template, local_)
@@ -313,7 +313,7 @@ class Planner:
         if prompt_set and not force:
             for local, template in sorted(prompt_set):
                 local_ = project_root / local
-                if local in removed_set:
+                if local in removed_keys:
                     response = prompt_fn(f"Remove modified file '{local}'? [y/N]: ").strip().lower()
                     if response == 'y':
                         self.file_ops.remove_file(local_)
@@ -329,7 +329,7 @@ class Planner:
             # Force means proceed without prompting.
             for local, template in prompt_set:
                 local_ = project_root / local
-                if local in removed_set:
+                if local in removed_keys:
                     self.file_ops.remove_file(local_)
                 else:
                     self.file_ops.copy_from_template(template_root, template, local_)
