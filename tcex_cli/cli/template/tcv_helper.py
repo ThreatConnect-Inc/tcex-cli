@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import TypedDict
 
@@ -46,15 +47,15 @@ class Plan(BaseModel):
     )
 
     @property
-    def summary(self) -> str:
-        """Return a summary of the plan."""
-        return (
-            f'Skip: {len(self.skip)}, '
-            f'Auto Update: {len(self.auto_update)}, '
-            f'Prompt User: {len(self.prompt_user)}, '
-            f'Template New: {len(self.template_new)}, '
-            f'Template Removed: {len(self.template_removed)}'
-        )
+    def summary(self) -> dict[str, str]:
+        """Return a summary of the plan as a dict suitable for Render.table.key_value."""
+        return {
+            'Skip': str(len(self.skip)),
+            'Auto Update': str(len(self.auto_update)),
+            'Prompt User': str(len(self.prompt_user)),
+            'Template New': str(len(self.template_new)),
+            'Template Removed': str(len(self.template_removed)),
+        }
 
     @property
     def details(self) -> dict:
@@ -297,7 +298,6 @@ class Planner:
             value = (key, local_info['template_path'])
             plan.template_removed.append(value)
 
-            local_info = local_meta[key]
             current_hash = self.hasher.sha256_file(dest / key)
 
             if current_hash is None:
@@ -315,7 +315,7 @@ class Planner:
         template_root: Path,
         project_root: Path,
         force: bool = False,
-        prompt_fn=input,  # dependency injection for tests
+        prompt_fn: Callable[[str], str] = input,  # dependency injection for tests
     ) -> None:
         """Apply the plan. If `force` is False, items in prompt_user will ask for confirmation."""
         auto_set = set(plan.auto_update)
@@ -375,7 +375,7 @@ class TCVHelper:
         self.planner = Planner(self.manifest, self.hasher, self.file_ops)
 
     # Behavior-compatible helpers
-    def copy_files(self, files_of_interest: list[str] | list[Path], dest: Path):
+    def copy_files(self, files_of_interest: list[str] | list[Path], dest: Path) -> None:
         """Copy files of interest to destination."""
         dest = Path(dest)
         dest.mkdir(parents=True, exist_ok=True)
