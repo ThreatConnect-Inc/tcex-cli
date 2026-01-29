@@ -68,18 +68,27 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.7
     hooks:
+      - id: ruff-format
+        types_or:
+          - python
+          - pyi
       - id: ruff
         args:
           - --fix
         types_or:
           - python
           - pyi
-      - id: ruff-format
-        types_or:
-          - python
-          - pyi
   - repo: local
     hooks:
+      - id: ruff-format-submodules
+        entry: ruff
+        args:
+          - format
+        language: system
+        name: ruff-format-submodules
+        # pre-commit types_or and types with multiple values don't work for submodules
+        types:
+          - directory
       - id: ruff-submodules
         entry: ruff
         args:
@@ -87,15 +96,6 @@ repos:
           - --fix
         language: system
         name: ruff-submodules
-        # pre-commit types_or and types with multiple values don't work for submodules
-        types:
-          - directory
-      - id: ruff-format-submodules
-        entry: ruff
-        args:
-          - format
-        language: system
-        name: ruff-format-submodules
         # pre-commit types_or and types with multiple values don't work for submodules
         types:
           - directory

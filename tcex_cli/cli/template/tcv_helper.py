@@ -335,12 +335,18 @@ class Planner:
             for local, template in sorted(prompt_set):
                 local_ = project_root / local
                 if local in removed_keys:
-                    response = prompt_fn(f"Remove modified file '{local}'? [y/N] (default: N): ").strip().lower()
+                    response = (
+                        prompt_fn(f"Remove modified file '{local}'? [y/N] (default: N): ")
+                        .strip()
+                        .lower()
+                    )
                     if response == 'y':
                         self.file_ops.remove_file(local_)
                 else:
                     response = (
-                        prompt_fn(f"Overwrite modified file '{local}' from template? [y/N] (default: N): ")
+                        prompt_fn(
+                            f"Overwrite modified file '{local}' from template? [y/N] (default: N): "
+                        )
                         .strip()
                         .lower()
                     )
