@@ -387,8 +387,9 @@ class GenReadmeMd(CliABC):
         self._add_labels(readme_md)
 
         # ensure exactly one trailing newline
-        while readme_md and readme_md[-1] == '':
-            readme_md.pop()
-        readme_md.append('')
+        idx = len(readme_md)
+        while idx > 0 and readme_md[idx - 1] == '':
+            idx -= 1
+        readme_md[idx:] = ['']
 
         return readme_md

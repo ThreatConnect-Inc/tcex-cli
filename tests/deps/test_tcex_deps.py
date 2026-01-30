@@ -41,7 +41,7 @@ class TestTcexCliDeps:
         Returns:
             The CLI invocation result.
         """
-        app_path = request.path.parent.parent / 'app' / 'tcpb' / 'app_1'
+        app_path = request.config.rootpath / 'app' / 'tcpb' / 'app_1'
         new_app_path = tmp_path / new_app_dir
         shutil.copytree(app_path, new_app_path)
 
