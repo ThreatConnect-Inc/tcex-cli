@@ -16,20 +16,24 @@ runner = CliRunner()
 class TestTcexCliList:
     """Tcex CLI Testing."""
 
-    def setup_method(self):
-        """Configure setup before all tests."""
-
-    def teardown_method(self):
-        """Configure teardown before all tests."""
-
     @staticmethod
     def _run_command(args: list[str]) -> Result:
-        """Test Case"""
-        result = runner.invoke(app, args)
-        return result
+        """Invoke the CLI command with the given arguments.
 
-    def test_tcex_list(self):
-        """Test Case"""
+        Args:
+            args: CLI arguments to pass to the tcex app command.
+
+        Returns:
+            The CLI invocation result.
+        """
+        return runner.invoke(app, args)
+
+    def test_tcex_list(self, clear_proxy_env_vars):
+        """Test listing all available templates.
+
+        Args:
+            clear_proxy_env_vars: Pytest fixture that removes proxy env vars.
+        """
         result = self._run_command(['list'])
         assert result.exit_code == 0, result.stdout
 
@@ -60,18 +64,26 @@ class TestTcexCliList:
     #     # spot check a few lines of outputs
     #     assert 'basic' in result.stdout
 
-    def test_tcex_list_organization_basic(self):
-        """Test Case"""
+    def test_tcex_list_organization_basic(self, clear_proxy_env_vars):
+        """Test listing organization templates includes the basic template.
+
+        Args:
+            clear_proxy_env_vars: Pytest fixture that removes proxy env vars.
+        """
         result = self._run_command(['list', '--type', 'organization'])
         assert result.exit_code == 0, result.stdout
 
         # spot check a few lines of outputs
         assert 'basic' in result.stdout
 
-    def test_tcex_list_playbook_basic(self):
-        """Test Case"""
+    def test_tcex_list_playbook_basic(self, clear_proxy_env_vars):
+        """Test listing playbook templates includes the basic template.
+
+        Args:
+            clear_proxy_env_vars: Pytest fixture that removes proxy env vars.
+        """
         result = self._run_command(['list', '--type', 'playbook'])
-        assert result.exit_code == 0, f'{result.stdout}'
+        assert result.exit_code == 0, result.stdout
 
         # spot check a few lines of outputs
         assert 'basic' in result.stdout

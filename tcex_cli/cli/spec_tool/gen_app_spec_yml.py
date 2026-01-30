@@ -32,10 +32,10 @@ class GenAppSpecYml(CliABC):
                 'apiUserTokenParam': self.app.ij.model.api_user_token_param,
                 'appId': str(self.app.ij.model.app_id),
                 'category': self.app.ij.model.category,
-                'deprecatesApps': self.app.ij.model.deprecates_apps,
+                'deprecatesApps': self.app.ij.model.deprecates_apps or [],
                 'displayName': self.app.ij.model.display_name,
                 'features': self.app.ij.model.features,
-                'labels': self.app.ij.model.labels,
+                'labels': self.app.ij.model.labels or [],
                 'languageVersion': self.app.ij.model.language_version,
                 'listDelimiter': self.app.ij.model.list_delimiter,
                 'minServerVersion': str(self.app.ij.model.min_server_version),
@@ -185,7 +185,9 @@ class GenAppSpecYml(CliABC):
             _current_data.append(
                 {
                     'parameters': [
-                        p.dict(by_alias=True) for p in self.app.ij.model.params if p.hidden is True
+                        p.dict(by_alias=True)
+                        for p in self.app.ij.model.params or []
+                        if p.hidden is True
                     ],
                     'title': 'Hidden Inputs',
                 }
@@ -194,7 +196,7 @@ class GenAppSpecYml(CliABC):
             # handle non-layout based Apps
             _current_data = [
                 {
-                    'parameters': [p.dict(by_alias=True) for p in self.app.ij.model.params],
+                    'parameters': [p.dict(by_alias=True) for p in self.app.ij.model.params or []],
                     'title': 'Inputs',
                 }
             ]

@@ -43,8 +43,8 @@ class TemplateCli(CliABC):
         self.base_url = f'https://api.github.com/repos/{_github_user}/tcex-app-templates'
         self.base_raw_url = f'https://raw.githubusercontent.com/{_github_user}/tcex-app-templates'
         self.errors = False
-        self.gh_password = os.getenv('GITHUB_PAT')
-        self.gh_username = os.getenv('GITHUB_USER')
+        self.gh_password = os.getenv('GITHUB_PAT', None)
+        self.gh_username = os.getenv('GITHUB_USER', None)
         self.template_configs = {}
         self.template_data: dict[str, list[TemplateConfigModel]] = {}
         self.template_manifest = {}
@@ -480,7 +480,7 @@ class TemplateCli(CliABC):
         )
 
         # add auth if set (typically not require since default site is public)
-        if self.gh_username is not None and self.gh_password is not None:
+        if self.gh_username and self.gh_password:
             session.auth = HTTPBasicAuth(self.gh_username, self.gh_password)
 
         return session

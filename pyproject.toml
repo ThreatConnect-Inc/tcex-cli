@@ -31,7 +31,7 @@ dependencies = [
   "inflection>=0.5.1",
   "isort>=6.0.0",
   "jmespath>=1.0.1",
-  "paho-mqtt<2.0.0",
+  "paho-mqtt<3.0.0",
   "pyaes>=1.6.1",
   "pydantic<2.0.0",
   "python-dateutil>=2.9.0",
@@ -85,6 +85,8 @@ dev = [
 test = [
   "pytest>=8.3.4",
   "pytest-cov>=6.0.0",
+  "pytest-ordering>=0.6",
+  "python-dotenv>=1.2.1",
 ]
 
 # Dynamic configuration for setuptools
@@ -109,7 +111,7 @@ commit = false
 # Additional arguments to pass to the git commit command
 commit_args = "--no-verify"
 # The current version of the project
-current_version = "1.0.6"
+current_version = "1.0.6-dev0"
 # The commit message template used when committing version bumps
 message = "Version updated from {current_version} to {new_version}"
 # Regular expression for parsing version strings

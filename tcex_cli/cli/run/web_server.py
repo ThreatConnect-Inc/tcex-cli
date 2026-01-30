@@ -58,7 +58,7 @@ class WebServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         service = Thread(group=None, target=self.run, name='SimpleServerThread', daemon=True)
         service.start()
 
-    def on_message(self, client: mqtt.Client, userdata, message):  # noqa: ARG002
+    def on_message(self, _client: mqtt.Client, _userdata, message):
         """Handle message broker on_message events."""
         try:
             msg = json.loads(message.payload)

@@ -1,8 +1,6 @@
 """Test Module"""
 
 # standard library
-import os
-import shutil
 from pathlib import Path
 
 # third-party
@@ -21,51 +19,69 @@ runner = CliRunner()
 class TestTcexCliInit:
     """Test Module"""
 
-    working_dir = Path.cwd() / 'app_init'
+    @staticmethod
+    def _run_command(
+        args: list[str],
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> Result:
+        """Create a working directory, chdir into it, and invoke the CLI command.
 
-    def startup_method(self):
-        """Configure startup before all tests."""
-        # remove working directory if it exists
-        shutil.rmtree(self.working_dir, ignore_errors=True)
+        Args:
+            args: CLI arguments to pass to the tcex app command.
+            tmp_path: Pytest fixture providing a temporary directory unique to each test.
+            monkeypatch: Pytest fixture for modifying the working directory.
 
-    def teardown_method(self):
-        """Configure teardown before all tests."""
-        # remove working directory if it exists
-        shutil.rmtree(self.working_dir, ignore_errors=True)
+        Returns:
+            The CLI invocation result.
+        """
+        working_dir = tmp_path / 'app_init'
+        working_dir.mkdir()
 
-    def _run_command(self, args: list[str], monkeypatch: pytest.MonkeyPatch) -> Result:
-        """Helper Method"""
-        # create working directory
-        self.working_dir.mkdir(exist_ok=True, parents=True)
+        monkeypatch.chdir(working_dir)
 
-        # change to testing directory
-        monkeypatch.chdir(self.working_dir)
+        return runner.invoke(app, args)
 
-        result = runner.invoke(app, args)
-        return result
+    def test_tcex_init_organization_basic(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clear_proxy_env_vars
+    ):
+        """Test init command for an organization app with the basic template.
 
-    def test_tcex_init_organization_basic(self, monkeypatch: pytest.MonkeyPatch):
-        """Test Case"""
+        Args:
+            tmp_path: Pytest fixture providing a temporary directory unique to each test.
+            monkeypatch: Pytest fixture for modifying the working directory.
+            clear_proxy_env_vars: Pytest fixture that removes proxy env vars.
+        """
         result = self._run_command(
-            ['init', '--type', 'organization', '--template', 'basic', '--force'], monkeypatch
+            ['init', '--type', 'organization', '--template', 'basic', '--force'],
+            tmp_path,
+            monkeypatch,
         )
         assert result.exit_code == 0, result.stdout
 
         # spot check a few template files
-        assert os.path.isfile('app.py')
-        assert os.path.isfile('install.json')
-        assert os.path.isfile('job_app.py')
-        assert os.path.isfile('tcex.json')
+        assert Path('app.py').is_file()
+        assert Path('install.json').is_file()
+        assert Path('job_app.py').is_file()
+        assert Path('tcex.json').is_file()
 
-    def test_tcex_init_playbook_basic(self, monkeypatch: pytest.MonkeyPatch):
-        """Test Case"""
+    def test_tcex_init_playbook_basic(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clear_proxy_env_vars
+    ):
+        """Test init command for a playbook app with the basic template.
+
+        Args:
+            tmp_path: Pytest fixture providing a temporary directory unique to each test.
+            monkeypatch: Pytest fixture for modifying the working directory.
+            clear_proxy_env_vars: Pytest fixture that removes proxy env vars.
+        """
         result = self._run_command(
-            ['init', '--type', 'playbook', '--template', 'basic'], monkeypatch
+            ['init', '--type', 'playbook', '--template', 'basic'], tmp_path, monkeypatch
         )
         assert result.exit_code == 0, result.stdout
 
         # spot check a few template files
-        assert os.path.isfile('app.py')
-        assert os.path.isfile('install.json')
-        assert os.path.isfile('playbook_app.py')
-        assert os.path.isfile('tcex.json')
+        assert Path('app.py').is_file()
+        assert Path('install.json').is_file()
+        assert Path('playbook_app.py').is_file()
+        assert Path('tcex.json').is_file()
