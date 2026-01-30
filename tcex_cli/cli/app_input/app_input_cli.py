@@ -151,7 +151,7 @@ class AppInputCli(CliABC):
 
     def generate_app_inputs(self):
         """Generate the app_inputs.json file."""
-        for param in self.ij.model.params:
+        for param in self.ij.model.params or []:
             Render.panel.info(f'[blue]Processing parameter: {param.name}[/blue]')
 
             # Handle boolean with a true default value, this makes it required
