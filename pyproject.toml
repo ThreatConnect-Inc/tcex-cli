@@ -43,6 +43,7 @@ dependencies = [
   "semantic-version>=2.10.0",
   "tinydb>=4.8.2",
   "typer>=0.15.1",
+  "wrapt>=1.17.2",
 ]
 
 # Short description of the project
@@ -80,7 +81,7 @@ dev = [
   "pre-commit>=4.1.0",
   "pyright>=1.1.394",
   "pyupgrade>=3.19.1",
-  "ruff>=0.9.7",
+  "ruff>=0.15.2",
 ]
 test = [
   "pytest>=8.3.4",

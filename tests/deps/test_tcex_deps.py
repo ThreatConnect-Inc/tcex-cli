@@ -41,7 +41,7 @@ class TestTcexCliDeps:
         Returns:
             The CLI invocation result.
         """
-        app_path = request.config.rootpath / 'app' / 'tcpb' / 'app_1'
+        app_path = request.config.rootpath / 'tests' / 'app' / 'tcpb' / 'app_1'
         new_app_path = tmp_path / new_app_dir
         shutil.copytree(app_path, new_app_path)
 
@@ -66,39 +66,7 @@ class TestTcexCliDeps:
         """
         result = self._run_command(['deps'], 'app_std', tmp_path, request, monkeypatch)
         assert result.exit_code == 0, result.output
-        assert Path('deps/tcex').is_dir(), result.output
-
-    def test_tcex_deps_branch(
-        self,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-        request: pytest.FixtureRequest,
-        clear_proxy_env_vars,
-    ):
-        """Test deps install using a specific branch.
-
-        Args:
-            tmp_path: Pytest fixture providing a temporary directory unique to each test.
-            monkeypatch: Pytest fixture for modifying environment and working directory.
-            request: Pytest fixture for accessing test context and file paths.
-            clear_proxy_env_vars: Pytest fixture that removes proxy env vars.
-        """
-        branch = 'develop'
-        result = self._run_command(
-            ['deps', '--branch', branch], 'app_branch', tmp_path, request, monkeypatch
-        )
-        assert result.exit_code == 0, result.output
-        assert Path('deps/tcex').is_dir(), result.output
-
-        # iterate over command output for validations
-        for line in result.stdout.split('\n'):
-            # validate that the correct branch is being used
-            if 'Using Branch' in line:
-                assert branch in line
-
-            # validate that the correct branch is being used
-            if 'Running' in line:
-                assert 'temp-requirements.txt' in line
+        assert (tmp_path / 'app_std' / 'deps' / 'tcex').is_dir(), result.output
 
     def test_tcex_deps_proxy_env(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
@@ -110,10 +78,20 @@ class TestTcexCliDeps:
             monkeypatch: Pytest fixture for modifying environment and working directory.
             request: Pytest fixture for accessing test context and file paths.
         """
+        # assert proxy settings exist in environment and have valid values
+        proxy_host = os.getenv('TC_PROXY_HOST')
+        proxy_port = os.getenv('TC_PROXY_PORT')
+        proxy_user = os.getenv('TC_PROXY_USERNAME') or os.getenv('TC_PROXY_USER')
+        proxy_pass = os.getenv('TC_PROXY_PASSWORD') or os.getenv('TC_PROXY_PASS')
+        assert proxy_host is not None and proxy_host, 'TC_PROXY_HOST must be set'
+        assert proxy_port is not None and proxy_port, 'TC_PROXY_PORT must be set'
+        assert proxy_user is not None and proxy_user, 'TC_PROXY_USER must be set'
+        assert proxy_pass is not None and proxy_pass, 'TC_PROXY_PASS must be set'
+
         # proxy settings will be pulled from env vars
         result = self._run_command(['deps'], 'app_std', tmp_path, request, monkeypatch)
         assert result.exit_code == 0, result.output
-        assert Path('deps/tcex').is_dir(), result.output
+        assert (tmp_path / 'app_std' / 'deps' / 'tcex').is_dir(), result.output
 
     def test_tcex_deps_proxy_explicit(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
@@ -136,7 +114,8 @@ class TestTcexCliDeps:
 
         result = self._run_command(command, 'app_proxy', tmp_path, request, monkeypatch)
         assert result.exit_code == 0, result.output
-        assert Path('deps/tcex').is_dir(), result.output
+        test = list(tmp_path.iterdir())
+        assert (tmp_path / 'app_proxy' / 'deps' / 'tcex').is_dir(), result.output
 
         # iterate over command output for validations
         for line in result.stdout.split('\n'):

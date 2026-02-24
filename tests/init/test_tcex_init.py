@@ -60,10 +60,10 @@ class TestTcexCliInit:
         assert result.exit_code == 0, result.stdout
 
         # spot check a few template files
-        assert Path('app.py').is_file()
-        assert Path('install.json').is_file()
-        assert Path('job_app.py').is_file()
-        assert Path('tcex.json').is_file()
+        assert (tmp_path / 'app_init' / 'app.py').is_file()
+        assert (tmp_path / 'app_init' / 'install.json').is_file()
+        assert (tmp_path / 'app_init' / 'job_app.py').is_file()
+        assert (tmp_path / 'app_init' / 'tcex.json').is_file()
 
     def test_tcex_init_playbook_basic(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, clear_proxy_env_vars
@@ -81,7 +81,7 @@ class TestTcexCliInit:
         assert result.exit_code == 0, result.stdout
 
         # spot check a few template files
-        assert Path('app.py').is_file()
-        assert Path('install.json').is_file()
-        assert Path('playbook_app.py').is_file()
-        assert Path('tcex.json').is_file()
+        assert (tmp_path / 'app_init' / 'app.py').is_file()
+        assert (tmp_path / 'app_init' / 'install.json').is_file()
+        assert (tmp_path / 'app_init' / 'playbook_app.py').is_file()
+        assert (tmp_path / 'app_init' / 'tcex.json').is_file()

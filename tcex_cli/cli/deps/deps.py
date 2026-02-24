@@ -10,25 +10,19 @@ import typer
 from tcex_cli.cli.deps.deps_cli import DepsCli
 from tcex_cli.render.render import Render
 
-# vars
-default_branch = 'v2'
-
 # typer does not yet support PEP 604, but pyupgrade will enforce
 # PEP 604. this is a temporary workaround until support is added.
-IntOrNone = Optional[int]  # noqa: UP007
-StrOrNone = Optional[str]  # noqa: UP007
+IntOrNone = Optional[int]  # noqa: UP007, UP045, RUF100
+StrOrNone = Optional[str]  # noqa: UP007, UP045, RUF100
 
 
 def command(
     app_builder: bool = typer.Option(
         default=False, help='(Advanced) If true, this command was run from App Builder.'
     ),
-    branch: str = typer.Option(
-        default_branch,
-        help=(
-            'The git branch of the tcex repository to use. '
-            'This override what is in the requirements.txt file.'
-        ),
+    branch: StrOrNone = typer.Option(
+        None,
+        help=('[deprecated] The git branch of the tcex repository to use. '),
     ),
     no_cache_dir: bool = typer.Option(default=False, help='Do not use pip cache directory.'),
     pre: bool = typer.Option(default=False, help='Install pre-release packages.'),
@@ -47,7 +41,6 @@ def command(
     """
     cli = DepsCli(
         app_builder,
-        branch,
         no_cache_dir,
         pre,
         proxy_host,
@@ -56,15 +49,14 @@ def command(
         proxy_pass,
     )
     try:
+        if branch:
+            Render.panel.failure('The --branch arg is deprecated.')
+
         # validate python versions
         cli.validate_python_version()
 
         # configure proxy settings
         cli.configure_proxy()
-
-        # if branch != default_branch:
-        #     # create temp requirements.txt file pointing to tcex branch
-        #     cli.create_temp_requirements()
 
         # install debs
         cli.install_deps()
