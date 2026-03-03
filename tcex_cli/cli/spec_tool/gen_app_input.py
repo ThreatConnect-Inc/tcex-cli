@@ -250,6 +250,11 @@ class GenAppInput(CliABC):
                     # if hasattr(FieldTypes, field_type):
                     #     self.field_type_modules.add(field_type)
 
+        # append DEFAULT_TC_ACTION after type comparison so it applies
+        # regardless of whether the calculated or current type was used
+        if input_data.name == 'tc_action' and '= DEFAULT_TC_ACTION' not in type_:
+            type_ += ' = DEFAULT_TC_ACTION'
+
         return type_
 
     def _get_type_calculated(self, input_data: ParamsModel) -> tuple[str, list]:
@@ -505,6 +510,9 @@ class GenAppInput(CliABC):
         code = self.input_static.template_app_imports(
             self.field_type_modules, self.pydantic_modules, self.typing_modules
         )
+        if self.app.ij.model.get_param('tc_action') is not None:
+            code.extend(self.input_static.template_default_tc_action())
+
         code.extend(_code_inputs)
         if self.app.ij.model.get_param('tc_action') is None:
             code.extend(self.input_static.template_app_inputs_class())

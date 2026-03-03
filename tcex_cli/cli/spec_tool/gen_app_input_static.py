@@ -139,6 +139,18 @@ class GenAppInputStatic:
         )
         return _imports
 
+    @staticmethod
+    def template_default_tc_action() -> list:
+        """Return DEFAULT_TC_ACTION block for tc_action Apps."""
+        return [
+            'from tcex.app.config.install_json import InstallJson',
+            '',
+            'DEFAULT_TC_ACTION = None',
+            "if _tc_action := InstallJson().model.params_dict.get('tc_action'):",
+            '    DEFAULT_TC_ACTION = _tc_action.default',
+            '',
+        ]
+
     def template_app_inputs_class(self) -> list:
         """Return app_inputs.py AppInput class."""
         app_model = 'AppBaseModel'
@@ -216,19 +228,22 @@ class GenAppInputStatic:
                     """| None = None) -> type[BaseModel]:"""
                 ),
                 f'''{self.i2}"""Return the model based on the current action."""''',
+                f"""{self.i2}tc_action = tc_action or getattr(""",
                 (
-                    f"""{self.i2}tc_action = tc_action or self.inputs.model_unresolved.tc_action"""
-                    """  # type: ignore"""
+                    f"""{self.i3}self.inputs.model_unresolved, 'tc_action', """
+                    """DEFAULT_TC_ACTION"""
                 ),
+                f"""{self.i2})""",
                 f"""{self.i2}if tc_action is None:""",
                 f"""{self.i3}raise RuntimeError('No action (tc_action) found in inputs.')""",
                 '',
                 f"""{self.i2}action_model = self.action_model_map(tc_action.lower())""",
                 f"""{self.i2}if action_model is None:""",
-                f"""{self.i3}# pylint: disable=broad-exception-raised""",
                 f"""{self.i3}raise RuntimeError(""",
-                f"""{self.i4}\'No model found for action: \'""",
-                f"""{self.i4}f'{{self.inputs.model_unresolved.tc_action}}'  # type: ignore""",
+                (
+                    f"""{self.i4}f'No model found for action: """
+                    """{{self.inputs.model_unresolved.tc_action}}'  # type: ignore"""
+                ),
                 f"""{self.i3})""",
                 '',
                 f"""{self.i2}return action_model""",
