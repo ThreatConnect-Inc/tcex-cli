@@ -72,7 +72,6 @@ class DepsCli(CliABC):
         """Build the pip command for installing dependencies."""
 
         if self.tool == 'uv':
-            tool = 'uv'
             exe_command = [
                 self.uv_executable,
                 'pip',
