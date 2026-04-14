@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from functools import cached_property
 from importlib.metadata import version as get_version
 from pathlib import Path
+from typing import Literal
 from urllib.parse import quote
 
 from semantic_version import Version
@@ -20,7 +21,6 @@ from tcex_cli.render.render import Render
 
 # get logger
 _logger = logging.getLogger(__name__.split('.', maxsplit=1)[0])
-
 
 class DepsCli(CliABC):
     """Dependencies Handling Module."""
@@ -61,15 +61,20 @@ class DepsCli(CliABC):
         # update tcex.json
         self.app.tj.update.multiple()
 
+        self.tool: Literal['pip', 'uv'] = 'pip'
+
+        if (uv_executable := shutil.which('uv')) and self.is_executable(Path(uv_executable)):
+            self.tool = 'uv'
+            self.uv_executable = uv_executable
+
+
     def _build_command(self, deps_dir: Path, requirements_file: Path) -> list[str]:
         """Build the pip command for installing dependencies."""
-        tool = 'pip'
 
-        uv_executable = shutil.which('uv')
-        if uv_executable and self.is_executable(Path(uv_executable)):
+        if self.tool == 'uv':
             tool = 'uv'
             exe_command = [
-                uv_executable,
+                self.uv_executable,
                 'pip',
                 'install',
             ]
@@ -93,9 +98,9 @@ class DepsCli(CliABC):
         )
 
         if self.no_cache_dir:
-            if tool == 'pip':
+            if self.tool == 'pip':
                 exe_command.append('--no-cache-dir')
-            elif tool == 'uv':
+            elif self.tool == 'uv':
                 exe_command.append('--no-cache')
             self.output.append(KeyValueModel(key='Allow cached-dir Release', value='False'))
         if self.pre:
@@ -346,10 +351,9 @@ class DepsCli(CliABC):
     def requirements_lock_contents(self, deps_dir: Path) -> str:
         """Return the Python packages for the provided directory."""
         cmd = f'pip freeze --path "{deps_dir}"'
-        uv_executable = shutil.which('uv')
-        if uv_executable:
-            cmd = f'{uv_executable} {cmd}'
-        
+        if self.tool == 'uv':
+            cmd = f'{self.uv_executable} {cmd}'
+
         self.log.debug(f'event=get-requirements-lock-data, cmd={cmd}')
         try:
             output = subprocess.run(  # noqa: PLW1510
