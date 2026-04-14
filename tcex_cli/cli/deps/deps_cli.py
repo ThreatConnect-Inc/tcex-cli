@@ -346,6 +346,10 @@ class DepsCli(CliABC):
     def requirements_lock_contents(self, deps_dir: Path) -> str:
         """Return the Python packages for the provided directory."""
         cmd = f'pip freeze --path "{deps_dir}"'
+        uv_executable = shutil.which('uv')
+        if uv_executable:
+            cmd = f'{uv_executable} {cmd}'
+        
         self.log.debug(f'event=get-requirements-lock-data, cmd={cmd}')
         try:
             output = subprocess.run(  # noqa: PLW1510
