@@ -226,6 +226,8 @@ class Planner:
              hasn't changed this file since last sync — skip.
            - Otherwise, hash the local file and compare:
              * If the hash matches the new template or the file is missing, skip.
+             * If the hash matches the old (local manifest) template, auto-update
+               (user never modified the file — safe to overwrite).
              * All other modified files require user confirmation.
         4. For each key removed from the template:
            - If the local file is gone or unchanged from last-known hash,
@@ -271,6 +273,8 @@ class Planner:
             current_hash = self.hasher.sha256_file(project_path)
             if current_hash == template_info['sha256'] or current_hash is None:
                 plan.skip.append(value)
+            elif current_hash == local_info['sha256']:
+                plan.auto_update.append(value)
             else:
                 plan.prompt_user.append(value)
 

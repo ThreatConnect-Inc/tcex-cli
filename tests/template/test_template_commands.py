@@ -274,6 +274,23 @@ class TestUpdateModifiedFile:
         # user answered 'N' → file preserved
         assert (project_dir / 'playbook_app.py').read_text() == '# user modification'
 
+    def test_unmodified_file_auto_updates_when_template_changes(
+        self, template_cli, project_dir, monkeypatch
+    ):
+        """When the template changes but the user never modified the file, auto-update it."""
+        ProjectHelper.init_project(template_cli, project_dir, monkeypatch, 'basic', 'playbook')
+
+        # Don't modify the file — just simulate a template change
+        ProjectHelper.simulate_template_change(project_dir, 'app.py')
+
+        with patch.object(template_cli, 'ensure_cache', return_value=template_cli._cache_dir('v2')):
+            with patch('tcex_cli.render.render.Render.prompt.ask') as mock_prompt:
+                template_cli.update('v2', 'basic', 'playbook')
+
+        # app.py should NOT have been prompted — it was auto-updated
+        prompted_files = [call.args[0] for call in mock_prompt.call_args_list]
+        assert not any('app.py' in f for f in prompted_files)
+
     def test_non_template_file_prompts_when_template_changes(
         self, template_cli, project_dir, monkeypatch
     ):

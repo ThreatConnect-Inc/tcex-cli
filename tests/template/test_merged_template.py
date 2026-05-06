@@ -123,14 +123,15 @@ class TestBuildMergedPlaybook:
 
     def test_manifest_sha256_values_are_valid_hex(self, merged_playbook: Path):
         manifest = ManifestHelper.load(merged_playbook)
-        hex_pattern = re.compile(r'^[0-9a-f]{64}$')
+        sha256_pattern = re.compile(r'^[0-9a-f]{64}$')
+        git_sha_pattern = re.compile(r'^[0-9a-f]{40}$')
 
         for key, entry in manifest.items():
-            assert hex_pattern.match(entry['sha256']), (
+            assert sha256_pattern.match(entry['sha256']), (
                 f'{key}: sha256 is not valid hex: {entry["sha256"]!r}'
             )
-            assert hex_pattern.match(entry['last_commit']), (
-                f'{key}: last_commit is not valid hex: {entry["last_commit"]!r}'
+            assert git_sha_pattern.match(entry['last_commit']), (
+                f'{key}: last_commit is not a valid git SHA: {entry["last_commit"]!r}'
             )
 
     def test_manifest_sha256_matches_actual_file_hash(self, merged_playbook: Path):
