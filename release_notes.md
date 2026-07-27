@@ -3,27 +3,28 @@
 ## 2.0.0
 
 -   APP-5104 - Updated to use Pydantic 2.x
--   APP-5222 - [Deps] Migrated dependency and environment management to “uv” and “pyproject.toml”, replacing “requirements.txt”
--   APP-5303 - [Template] Gated GitHub authentication behind a new “--authenticate” flag on the “init”, “list”, and “update” commands
+-   APP-5222 - [Deps] Migrated dependency and environment management to "uv" and "pyproject.toml", replacing "requirements.txt"
+-   APP-5303 - [Template] Gated GitHub authentication behind a new "--authenticate" flag on the "init", "list", and "update" commands
+-   APP-5413 - [Run] Added new --watch-backend, --watch-frontend, --ui-configuration args
 
 ## 1.x
 
 ### 1.0.6
 
--   APP-4863 - [Package] Added a check to ensure the “package.app_name” value in “tcex.json” doesn't contain spaces
+-   APP-4863 - [Package] Added a check to ensure the "package.app_name" value in "tcex.json" doesn't contain spaces
 -   APP-4916 - [Migrate] Updated to support more replacement patterns
--   APP-4917 - [Run] Updated “app_inputs.json” file to support environment variables
+-   APP-4917 - [Run] Updated "app_inputs.json" file to support environment variables
 -   APP-4918 - [Run] Updated output to exclude staged variables
--   APP-4919 - [App-Inputs] Added a new command to generate “app_inputs.json” from “install.json” params
+-   APP-4919 - [App-Inputs] Added a new command to generate "app_inputs.json" from "install.json" params
 -   APP-4920 - [Run] - Updated run command to support system apps
 -   APP-5036 - [Message-Broker] Updated message broker connection to not set tls_version
 -   APP-5055 - [Message-Broker] Updated Paho MQTT library and message broker reconnect logic
--   APP-5299 - [Template] Added “--managed” to the “update” command to silently update only template-managed files
--   APP-5300 - [Migrate] Updated “migrate” to preview by default with “--apply” and added “--no-prompt” for unattended runs
--   APP-5301 - [Deps] Hardened dependency lock to avoid shell execution and never write an empty “requirements.lock”
--   APP-5305 - [Run] Added “app_inputs.d/” multi-config support with a selection menu and a “--config” override
--   APP-5306 - [Run] Added a hard error when a config references an undefined “${env.VAR}” environment variable
--   APP-5307 - [Run] Added validation of config inputs against staged “stage.kvstore” variables before launch
+-   APP-5299 - [Template] Added "--managed" to the "update" command to silently update only template-managed files
+-   APP-5300 - [Migrate] Updated "migrate" to preview by default with "--apply" and added "--no-prompt" for unattended runs
+-   APP-5301 - [Deps] Hardened dependency lock to avoid shell execution and never write an empty "requirements.lock"
+-   APP-5305 - [Run] Added "app_inputs.d/" multi-config support with a selection menu and a "--config" override
+-   APP-5306 - [Run] Added a hard error when a config references an undefined "${env.VAR}" environment variable
+-   APP-5307 - [Run] Added validation of config inputs against staged "stage.kvstore" variables before launch
 
 ### 1.0.5
 

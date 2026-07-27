@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
+from tcex_cli.cli.run.dev_dashboard import _DEV_DASHBOARD_HTML
+
 if TYPE_CHECKING:
     from tcex_cli.cli.run.web_server import WebServer  # CIRCULAR IMPORT
 
@@ -107,7 +109,45 @@ class RequestHandlerWebhook(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802, RUF100
         """Handle GET method."""
+        if self.path.startswith('/_tcex/'):
+            return self._handle_tcex(self.path)
         return self.call_service('GET')
+
+    def _handle_tcex(self, path: str) -> None:
+        """Route developer-dashboard requests."""
+        clean = path.split('?', maxsplit=1)[0].rstrip('/')
+        if clean in ('/_tcex', '/_tcex/index.html'):
+            self._serve_html()
+            return
+        if clean == '/_tcex/status':
+            self._serve_status()
+            return
+        self.send_error(404)
+
+    def _serve_html(self) -> None:
+        """Serve the dashboard HTML page."""
+        body = _DEV_DASHBOARD_HTML.encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_status(self) -> None:
+        """Serve the JSON status payload."""
+        if self.server.status_provider is None:
+            body = b'{}'
+        else:
+            body = json.dumps(self.server.status_provider()).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+        """Suppress all HTTP access-log output; traffic is visible in the /_tcex/ dashboard."""
 
     def do_PATCH(self):  # noqa: N802, RUF100
         """Handle PATCH method."""

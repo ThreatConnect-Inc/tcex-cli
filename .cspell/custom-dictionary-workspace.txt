@@ -45,7 +45,9 @@ kvstore
 levelname
 maxsplit
 mccabe
+monkeypatches
 MQTT
+objc
 paho
 pathlib
 POOLBLOCK
@@ -66,6 +68,7 @@ pyupgrade
 pyyaml
 relativedelta
 reqs
+rmap
 runservice
 secho
 setuptools
@@ -86,12 +89,16 @@ tcvw
 testpaths
 thirdparty
 threatconnect
+timespec
 tinydb
+topbar
 tryceratops
 typer
+unminified
 userdata
 Variadict
 venv
+watchfiles
 webhookevent
 xdist
 xunit

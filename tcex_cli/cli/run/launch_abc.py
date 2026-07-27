@@ -9,8 +9,10 @@ import re
 import secrets
 import socket
 import string
+import subprocess  # nosec B404 -- subprocess used with static, list-form args and no shell (see nosec B603 on the call sites)
 import sys
 from abc import ABC, abstractmethod
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Thread
 
@@ -32,13 +34,58 @@ _logger: TraceLogger = logging.getLogger(__name__.split('.', maxsplit=1)[0])  # 
 # pattern to match ${env.VARIABLE_NAME} placeholders (shared by detection and substitution)
 ENV_VAR_PATTERN = re.compile(r'(?P<env_pattern>\$\{env\.(?P<env_var_name>\w+)\})')
 
+# ---------------------------------------------------------------------------
+# File-watcher constants
+# ---------------------------------------------------------------------------
+
+#: File extensions that trigger an App restart in watch-backend mode.
+_WATCH_EXTENSIONS: frozenset[str] = frozenset({'.py', '.json'})
+
+#: Directory names that are excluded from the file watcher.
+#: ``log`` is included because ``create_input_config`` writes ``log/.test_app_params.json``
+#: on every spawn; excluding the directory prevents an infinite restart loop.
+_WATCH_EXCLUDED_DIRS: frozenset[str] = frozenset(
+    {
+        # App runtime directories
+        'in',
+        'out',
+        'log',
+        # Build / dependency directories
+        'deps',
+        'ui',
+        'ui_build',
+        # Python / tooling cache directories
+        '__pycache__',
+        '.mypy_cache',
+        '.pytest_cache',
+        '.hypothesis',
+        '.tox',
+        # VCS / IDE directories
+        '.git',
+        '.hg',
+        '.svn',
+        '.idea',
+        # Node / web tooling
+        '.venv',
+        'node_modules',
+    }
+)
+
 
 class LaunchABC(ABC):
     """Run API Service Apps"""
 
-    def __init__(self, config_json: Path):
-        """Initialize instance properties."""
+    def __init__(self, config_json: Path, watch_backend: bool = False):
+        """Initialize instance properties.
+
+        Args:
+            config_json: Path to the resolved App inputs config file.
+            watch_backend: When ``True``, the App is run as a subprocess and
+                automatically restarted whenever a ``*.py`` or ``*.json`` file
+                in the App directory changes.
+        """
         self.config_json = config_json
+        self._watch_backend = watch_backend
 
         # properties
         self.accent = 'dark_orange'
@@ -46,6 +93,10 @@ class LaunchABC(ABC):
         self.panel_title = 'blue'
         self.staged_keys = []
         self.util = Util()
+
+        # dashboard status; updated by _run_supervisor() transitions
+        self._backend_status: str | None = None
+        self._backend_since: datetime | None = None
 
         # ensure redis is available
         self.redis_server()
@@ -155,9 +206,229 @@ class LaunchABC(ABC):
                 )
         return app_inputs
 
-    def launch(self):
-        """Launch the App."""
+    # ------------------------------------------------------------------
+    # File-watcher helpers
+    # ------------------------------------------------------------------
 
+    @staticmethod
+    def _watch_filter(_: object, path: str) -> bool:
+        """Return ``True`` when *path* should trigger an App restart.
+
+        Called by ``watchfiles`` for every filesystem event.  Returning ``False``
+        suppresses the event (the App is not restarted).
+
+        Exclusion rules (checked in order):
+        1. Dotfiles / dot-directories — always ignored.
+        2. Any path component that is in ``_WATCH_EXCLUDED_DIRS`` or starts with
+           ``lib_`` (SDK dependency trees such as ``lib_latest/`` or ``lib_4.x/``).
+        3. Only ``.py`` and ``.json`` files trigger a restart.
+
+        Args:
+            _: The ``watchfiles.Change`` enum value (unused; accepts ``object``
+               so the signature is contravariance-safe for the type checker).
+               If ty emits a Callable-contravariance diagnostic, replace
+               ``_: object`` with ``change: Change`` (import from watchfiles)
+               and add ``# noqa: ARG001`` to silence the unused-arg warning.
+            path: Absolute path string of the changed file.
+
+        Returns:
+            ``True`` if the change should trigger a restart, ``False`` otherwise.
+        """
+        p = Path(path)
+        # exclude dotfiles (e.g. .test_app_params.json written by create_input_config)
+        if p.name.startswith('.'):
+            return False
+        # exclude paths that pass through an excluded directory or an SDK lib directory
+        for part in p.parts:
+            if part in _WATCH_EXCLUDED_DIRS or part.startswith('lib_'):
+                return False
+        return p.suffix in _WATCH_EXTENSIONS
+
+    def _compute_pythonpath(self) -> list[str]:
+        """Return the ordered list of paths to inject into the App subprocess's ``sys.path``.
+
+        Mirrors the logic in ``CliABC.update_system_path`` / ``CliABC.deps_dir`` using an
+        existence-based check rather than the SDK version, so ``LaunchABC`` does not need
+        to depend on ``CliABC``.
+
+        Returns:
+            A list of absolute path strings: ``[cwd, deps_or_lib_latest?]``.
+        """
+        app_path = Path.cwd()
+        deps = app_path / 'deps'
+        lib_latest = app_path / 'lib_latest'
+        paths = [str(app_path)]
+        if deps.exists():
+            paths.append(str(deps.resolve()))
+        elif lib_latest.exists():
+            paths.append(str(lib_latest.resolve()))
+        return paths
+
+    def _spawn_app_subprocess(self) -> subprocess.Popen[bytes]:
+        """Spawn a new App subprocess and return the ``subprocess.Popen`` handle.
+
+        The subprocess runs the standard App entry-point::
+
+            from run import Run
+
+            r = Run()
+            r.setup()
+            r.launch()
+            r.teardown()
+
+        The App's ``sys.path`` is extended via the private ``_TCEX_PYTHONPATH``
+        environment variable so the developer's own ``PYTHONPATH`` is preserved.
+
+        The child is launched with ``subprocess.Popen`` using stdlib defaults
+        (``close_fds=True``, inherited cwd, ``restore_signals=True``), running the
+        venv Python (``sys.executable``) against a fixed static ``runner`` string.
+
+        Returns:
+            A live ``subprocess.Popen`` wrapping the spawned App process.
+        """
+        self.create_input_config(self.model.inputs)
+
+        runner = (
+            'import sys; '
+            '[sys.path.insert(0, p) for p in reversed(__import__("os").environ.get('
+            '"_TCEX_PYTHONPATH", "").split(__import__("os").pathsep)) if p]; '
+            'from run import Run; r = Run(); r.setup(); r.launch(); r.teardown()'
+        )
+
+        env = os.environ.copy()
+        python_path_parts = self._compute_pythonpath()
+        existing = env.get('PYTHONPATH', '')
+        if existing:
+            python_path_parts.append(existing)
+        env['_TCEX_PYTHONPATH'] = os.pathsep.join(python_path_parts)
+
+        # sys.executable is the venv Python; the argv is a fixed static string (runner).
+        self.log.info(
+            f'step=run, event=spawn-app-subprocess, '
+            f'executable="{sys.executable}", '
+            f'app_bundle={".app/Contents/MacOS" in sys.executable}, '
+            f'python_version="{sys.version.split()[0]}"'
+        )
+        return subprocess.Popen(  # nosec B603 — sys.executable is the venv Python; args are static
+            [sys.executable, '-c', runner],
+            env=env,
+        )
+
+    @staticmethod
+    def _graceful_terminate(proc: subprocess.Popen[bytes]) -> None:
+        """Terminate *proc* gracefully, escalating to SIGKILL after a timeout.
+
+        Args:
+            proc: The ``subprocess.Popen`` handle to terminate.
+        """
+        if proc.poll() is not None:
+            return
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+    def _run_supervisor(self) -> int:
+        """Run the App under the file-watcher supervisor loop.
+
+        Spawns the App as a subprocess, watches the App directory for file
+        changes, and restarts the subprocess whenever a watched file changes.
+        Ctrl-C shuts everything down cleanly.
+
+        Returns:
+            The exit code of the last App subprocess.
+        """
+        import threading  # noqa: PLC0415
+
+        from watchfiles import watch as wfiles_watch  # noqa: PLC0415
+
+        change_event = threading.Event()
+        stop_event = threading.Event()
+        exit_code = 0
+        proc: subprocess.Popen[bytes] | None = None
+
+        def _watcher():
+            for _ in wfiles_watch(
+                Path.cwd(),
+                watch_filter=self._watch_filter,
+                stop_event=stop_event,
+                yield_on_timeout=False,
+                raise_interrupt=False,  # required: without this the daemon thread hangs on Ctrl-C
+            ):
+                change_event.set()
+
+        watcher_thread = threading.Thread(target=_watcher, name='TcexFileWatcher', daemon=True)
+        watcher_thread.start()
+
+        try:
+            while True:
+                # Reset the flag at the top of each outer loop iteration so we correctly
+                # distinguish file-change exits from natural app exits (see comment below).
+                file_change_restart = False
+
+                self._backend_status = 'starting'
+                self._backend_since = datetime.now(tz=UTC)
+                Render.panel.info('Starting App subprocess...', f'[{self.panel_title}]Backend[/]')
+                proc = self._spawn_app_subprocess()
+                self._backend_status = 'running'
+                self._backend_since = datetime.now(tz=UTC)
+
+                while proc.poll() is None:
+                    if change_event.wait(timeout=0.5):
+                        change_event.clear()
+                        # Mark that this exit was triggered by a file change, not a natural exit.
+                        # IMPORTANT: without this flag, after a file-change restart change_event
+                        # is always False (it was cleared before _graceful_terminate), so the
+                        # natural-exit guard below would also wait -- requiring the developer to
+                        # save a second time to actually trigger a restart (double-wait bug).
+                        file_change_restart = True
+                        self._backend_status = 'restarting'
+                        self._backend_since = datetime.now(tz=UTC)
+                        Render.panel.info(
+                            'File change detected -- restarting App...',
+                            f'[{self.panel_title}]Backend[/]',
+                        )
+                        self._graceful_terminate(proc)
+                        break
+
+                exit_code = proc.returncode if proc.returncode is not None else 0
+                self.log.info(f'step=supervisor, event=app-exit, exit-code={exit_code}')
+
+                # Only wait for a file change if the App exited naturally (not via a file-change
+                # restart).  Using file_change_restart here (rather than change_event.is_set())
+                # is intentional: change_event was cleared before _graceful_terminate, so it
+                # would always be False after a restart -- falling through to another wait.
+                if not file_change_restart and not change_event.is_set():
+                    self._backend_status = 'exited'
+                    self._backend_since = datetime.now(tz=UTC)
+                    Render.panel.info(
+                        f'App exited (code {exit_code}). Watching for file changes...',
+                        f'[{self.panel_title}]Backend[/]',
+                    )
+                    change_event.wait()
+                    change_event.clear()
+                    Render.panel.info(
+                        'File change detected -- restarting App...',
+                        f'[{self.panel_title}]Backend[/]',
+                    )
+
+        except KeyboardInterrupt:
+            self._backend_status = 'stopped'
+            self._backend_since = datetime.now(tz=UTC)
+            stop_event.set()
+            Render.panel.info('Stopping...', f'[{self.panel_title}]Backend[/]')
+            if proc is not None and proc.poll() is None:
+                self._graceful_terminate(proc)
+
+        return exit_code
+
+    def _launch_once(self) -> int:
+        """Run the App in-process (the original launch behavior).
+
+        Returns:
+            The exit code from the App run.
+        """
         from run import Run  # type: ignore # noqa: PLC0415
 
         # run the app
@@ -174,10 +445,25 @@ class LaunchABC(ABC):
             run.launch()
             run.teardown()
         except SystemExit as e:
-            exit_code = e.code
+            # SystemExit.code is int | str | None; coerce to int for a consistent return type
+            raw = e.code
+            exit_code = int(raw) if isinstance(raw, (int, str)) and raw is not None else 1
 
         self.log.info(f'step=run, event=app-exit, exit-code={exit_code}')
         return exit_code
+
+    def launch(self) -> int:
+        """Launch the App.
+
+        Delegates to :meth:`_run_supervisor` when ``--watch-backend`` is active,
+        otherwise runs the App in-process via :meth:`_launch_once`.
+
+        Returns:
+            The App exit code.
+        """
+        if self._watch_backend:
+            return self._run_supervisor()
+        return self._launch_once()
 
     def live_format_dict(self, data: dict[str, str] | None):
         """Format dict for live output."""
@@ -285,5 +571,8 @@ class LaunchABC(ABC):
                 f'step=setup, event=using-token, token=<redacted>, token-elapsed={r.elapsed}'
             )
         else:
-            self.log.error(f'step=setup, event=failed-to-retrieve-token error="{r.text}"')
+            self.log.error(
+                f'step=setup, event=failed-to-retrieve-token, '
+                f'status={r.status_code}, reason={r.reason!r}'
+            )
         return token

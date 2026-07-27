@@ -34,6 +34,8 @@ class WebServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         redis_client: redis.Redis,
         request_handler: type[RequestHandlerApi] | type[RequestHandlerWebhook],
         tc_token: Callable,
+        *,
+        status_provider: Callable[[], dict] | None = None,
     ):
         """Initialize instance properties"""
         super().__init__(
@@ -45,6 +47,7 @@ class WebServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         self.publish = publish
         self.redis_client = redis_client
         self.tc_token = tc_token
+        self.status_provider = status_provider
 
         # properties
         self.active_requests = {}

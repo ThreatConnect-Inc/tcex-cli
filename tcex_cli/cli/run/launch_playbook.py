@@ -17,9 +17,9 @@ OUTPUT_VARIABLE_INPUTS = {'tc_playbook_out_variables'}
 class LaunchPlaybook(LaunchABC):
     """Launch an App"""
 
-    def __init__(self, config_json: Path):
+    def __init__(self, config_json: Path, watch_backend: bool = False):
         """Initialize class properties."""
-        super().__init__(config_json)
+        super().__init__(config_json, watch_backend=watch_backend)
         self.playbook = PlaybookCreate(
             self.redis_client, self.model.inputs.tc_playbook_kvstore_context
         )

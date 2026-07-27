@@ -16,9 +16,9 @@ from tcex_cli.cli.run.launch_service_common_abc import LaunchServiceCommonABC
 class LaunchServiceCommonTriggersABC(LaunchServiceCommonABC, ABC):
     """Launch Class for all Service type Apps."""
 
-    def __init__(self, config_json: Path):
+    def __init__(self, config_json: Path, watch_backend: bool = False):
         """Initialize instance properties."""
-        super().__init__(config_json)
+        super().__init__(config_json, watch_backend=watch_backend)
 
         # properties
         self.stop_server = False

@@ -44,6 +44,7 @@ dependencies = [
   "semantic-version~=2.10.0",
   "tinydb~=4.8",
   "typer~=0.26.7",
+  "watchfiles~=1.0",
   "wrapt~=2.2.1",
 ]
 
@@ -81,8 +82,8 @@ dev = [
   "bandit>=1.9.4",
   "pre-commit>=4.6.0",
   "pyupgrade>=3.21.2",
-  "ruff>=0.15.16",
-  "ty>=0.0.51",
+  "ruff==0.15.22",
+  "ty==0.0.51",
 ]
 test = [
   "pytest>=9.0.3",
@@ -99,6 +100,10 @@ version = {attr = "tcex_cli.__version__"}
 [tool.setuptools.packages.find]
 exclude = ["tests*", "local-*"]
 
+# Non-Python files to include in the installed package
+[tool.setuptools.package-data]
+"tcex_cli.cli.run" = ["dev_dashboard.html"]
+
 #
 # Tool configurations
 #
@@ -112,7 +117,7 @@ commit = false
 # Additional arguments to pass to the git commit command
 commit_args = "--no-verify"
 # The current version of the project
-current_version = "2.0.0-dev3"
+current_version = "2.0.0"
 # The commit message template used when committing version bumps
 message = "Version updated from {current_version} to {new_version}"
 # Regular expression for parsing version strings

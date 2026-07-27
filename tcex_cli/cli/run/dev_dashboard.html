@@ -1,0 +1,496 @@
+<!-- TcEx Dev Dashboard — auto-served by tcex run -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>TcEx Dev Dashboard</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: #1e1e1e;
+        color: #cccccc;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 13px;
+      }
+      #topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #252525;
+        padding: 10px 20px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        color: #4fc3f7;
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      #topbar-inner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        border-radius: 4px;
+        padding: 3px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .chip-green {
+        background: #1b5e20;
+        color: #a5d6a7;
+      }
+      .chip-amber {
+        background: #e65100;
+        color: #ffe0b2;
+      }
+      .chip-red {
+        background: #b71c1c;
+        color: #ffcdd2;
+      }
+      #no-watchers {
+        color: #555;
+        font-style: italic;
+        font-size: 12px;
+      }
+      .section {
+        padding: 14px 20px 0;
+      }
+      .section-heading {
+        color: #4fc3f7;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin-bottom: 8px;
+      }
+      .tbl-wrap {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th {
+        color: #9e9e9e;
+        border-bottom: 1px solid #444;
+        padding: 6px 10px;
+        text-align: left;
+        font-weight: 400;
+      }
+      td {
+        padding: 5px 10px;
+        border-bottom: 1px solid #2a2a2a;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      tr:nth-child(odd) td {
+        background: #252525;
+      }
+      tr:nth-child(even) td {
+        background: #1e1e1e;
+      }
+      tr:hover td {
+        background: #2a2d2e;
+        cursor: pointer;
+      }
+      tr.empty td {
+        color: #555;
+        font-style: italic;
+        text-align: center;
+        background: #1e1e1e;
+      }
+      tr.header-detail td {
+        background: #2d2d2d;
+        padding: 0;
+      }
+      tr.header-detail pre {
+        background: #2d2d2d;
+        padding: 8px;
+        border-radius: 3px;
+        overflow-x: auto;
+        color: #ce9178;
+        font-size: 11px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      footer {
+        color: #555;
+        font-size: 11px;
+        margin-top: 20px;
+        padding: 10px 20px;
+      }
+      .tbl-controls {
+        margin-bottom: 8px;
+      }
+      input[type=search] {
+        background: #2a2a2a;
+        color: #cccccc;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 12px;
+        width: 280px;
+        outline: none;
+      }
+      input[type=search]:focus {
+        border-color: #4fc3f7;
+      }
+      .pg-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        font-size: 12px;
+        color: #9e9e9e;
+      }
+      .pg-bar button {
+        background: #2a2a2a;
+        color: #cccccc;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 3px 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .pg-bar button:disabled {
+        opacity: .35;
+        cursor: default;
+      }
+      .pg-bar button:hover:not(:disabled) {
+        background: #3a3a3a;
+      }
+      .det-label {
+        color: #9e9e9e;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        padding: 6px 8px 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="topbar">
+      <div>
+        <h1>TcEx Dev Dashboard</h1>
+        <div style="color:#9e9e9e;font-size:11px">localhost service monitor</div>
+      </div>
+      <div id="topbar-inner">
+        <span id="chip-backend"></span>
+        <span id="chip-frontend"></span>
+        <span id="no-watchers" style="display:none">No watchers active</span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-heading">Commands</div>
+      <div class="tbl-controls">
+        <input type="search" id="fi-commands" placeholder="Filter commands…">
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Channel</th>
+              <th>Command</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody id="tb-commands">
+            <tr class="empty"><td colspan="99"><em>No data yet.</em></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="pg-commands" class="pg-bar"></div>
+    </div>
+    <div class="section" style="margin-top:16px">
+      <div class="section-heading">Requests &amp; Responses</div>
+      <div class="tbl-controls">
+        <input type="search" id="fi-requests" placeholder="Filter requests…">
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Status</th>
+              <th>Code</th>
+              <th>Request Key</th>
+            </tr>
+          </thead>
+          <tbody id="tb-requests">
+            <tr class="empty"><td colspan="99"><em>No data yet.</em></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="pg-requests" class="pg-bar"></div>
+    </div>
+    <footer id="last-updated">Last updated: —</footer>
+    <script>
+      var PAGE_SIZE = 25;
+      var pageState = {commands: 0, requests: 0};
+      var lastData = null;
+
+      function formatKV(arr) {
+        if (!arr || !arr.length) return "";
+        return arr.map(function(x) {
+          return x.name + ": " + x.value;
+        }).join("\n");
+      }
+
+      function truncKV(arr) {
+        if (!arr || !arr.length) return "";
+        var f = arr[0].name + ": " + arr[0].value;
+        return arr.length > 1 ? f + " …" : f;
+      }
+
+      function relTime(ts) {
+        if (!ts) return "";
+        var s = Math.round((Date.now() - ts) / 1000);
+        if (s < 5) return "just now";
+        if (s < 60) return s + "s ago";
+        var m = Math.round(s / 60);
+        if (m < 60) return m + "m ago";
+        return Math.round(m / 60) + "h ago";
+      }
+
+      function chipHTML(label, state, ts) {
+        if (!state) return "";
+        var cls = "chip-amber";
+        if (state === "running" || state === "success") {
+          cls = "chip-green";
+        } else if (state === "exited" || state === "error" || state === "stopped") {
+          cls = "chip-red";
+        }
+        var rel = ts ? (" · " + relTime(ts)) : "";
+        return '<span class="chip ' + cls + '">● ' + escHtml(label) + ": " + escHtml(state) + rel + "</span>";
+      }
+
+      function updateStatusBar(backend, frontend, backendSince, frontendSince) {
+        document.getElementById("chip-backend").innerHTML = chipHTML("Backend", backend, backendSince);
+        document.getElementById("chip-frontend").innerHTML = chipHTML("Frontend", frontend, frontendSince);
+        document.getElementById("no-watchers").style.display = (!backend && !frontend) ? "" : "none";
+      }
+
+      function escHtml(s) {
+        return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+
+      function escAttr(s) {
+        return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+
+      function joinRequestsResponses(requests, responses) {
+        var rmap = {};
+        (responses || []).forEach(function(r) {
+          rmap[r.request_key] = r;
+        });
+        return (requests || []).map(function(req) {
+          var resp = rmap[req.request_key] || {};
+          return {
+            time: req.request_time || "",
+            method: req.method || "",
+            path: req.path || "",
+            status: resp.status || "—",
+            status_code: resp.status_code !== undefined ? String(resp.status_code) : "—",
+            request_key: req.request_key || "",
+            req_headers: req.headers || [],
+            query_params: req.query_params || [],
+            resp_headers: resp.headers || []
+          };
+        });
+      }
+
+      function applyFilter(rows, q) {
+        if (!q) return rows;
+        return rows.filter(function(r) {
+          return Object.values(r).some(function(v) {
+            return typeof v === "string" && v.toLowerCase().indexOf(q) >= 0;
+          });
+        });
+      }
+
+      function buildPagination(key, total, page) {
+        var el = document.getElementById("pg-" + key);
+        if (!el) return;
+        if (total <= PAGE_SIZE) {
+          el.innerHTML = "";
+          return;
+        }
+        var pages = Math.ceil(total / PAGE_SIZE);
+        var prevDisabled = page <= 0 ? " disabled" : "";
+        var nextDisabled = page >= pages - 1 ? " disabled" : "";
+        el.innerHTML = '<button onclick="pgNav(\'' + key + '\',-1)"' + prevDisabled + '>&#8592; Prev</button>'
+          + '<span>Page ' + (page + 1) + ' of ' + pages + ' (' + total + ' total)</span>'
+          + '<button onclick="pgNav(\'' + key + '\',1)"' + nextDisabled + '>Next &#8594;</button>';
+      }
+
+      function insertDetail(row) {
+        var raw = row.dataset.headers;
+        var sections = "";
+        try {
+          var p = JSON.parse(raw);
+          if (p.rh) {
+            sections += '<div class="det-label">Request Headers</div><pre>' + escHtml(p.rh) + "</pre>";
+          }
+          if (p.qp) {
+            sections += '<div class="det-label">Query Params</div><pre>' + escHtml(p.qp) + "</pre>";
+          }
+          if (p.rsh) {
+            sections += '<div class="det-label">Response Headers</div><pre>' + escHtml(p.rsh) + "</pre>";
+          }
+        } catch(ex) {
+          sections = "<pre>" + escHtml(raw) + "</pre>";
+        }
+        if (!sections) sections = '<pre><em>No header data.</em></pre>';
+        var d = document.createElement("tr");
+        d.className = "header-detail";
+        d.innerHTML = "<td colspan=\"99\">" + sections + "</td>";
+        row.after(d);
+      }
+
+      function fillTable(id, allRows, cols, expandFn) {
+        var tb = document.getElementById(id);
+        if (!tb) return;
+        var key = id.slice(3);
+        var fi = document.getElementById("fi-" + key);
+        var q = fi ? fi.value.toLowerCase() : "";
+        var rows = applyFilter(allRows, q);
+        var maxPage = Math.max(0, Math.ceil(rows.length / PAGE_SIZE) - 1);
+        if (pageState[key] > maxPage) pageState[key] = maxPage;
+        var page = pageState[key];
+        // Capture currently-expanded rows by their STABLE per-row identity
+        // (data-row-id), not by the header-content JSON (data-headers). Two rows
+        // with identical headers share the same content but have distinct ids, so
+        // collapsing one no longer re-expands on the next refresh.
+        var expanded = new Set();
+        tb.querySelectorAll("tr[data-row-id]").forEach(function(row) {
+          var next = row.nextElementSibling;
+          if (next && next.classList.contains("header-detail")) {
+            expanded.add(row.dataset.rowId);
+          }
+        });
+        if (!rows.length) {
+          tb.innerHTML = '<tr class="empty"><td colspan="99"><em>' + (q ? "No matches." : "No data yet.") + "</em></td></tr>";
+          buildPagination(key, 0, 0);
+          return;
+        }
+        var sliced = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+        var html = "";
+        for (var i = 0; i < sliced.length; i++) {
+          var r = sliced[i];
+          var cells = "";
+          var da = "";
+          for (var j = 0; j < cols.length; j++) {
+            var col = cols[j];
+            var val = r[col.key] !== undefined ? r[col.key] : "";
+            cells += "<td>" + escHtml(String(val || "")) + "</td>";
+          }
+          if (expandFn) {
+            var ep = expandFn(r);
+            if (ep) {
+              // Stable, unique identity for reconciling expansion across refreshes.
+              // Prefer request_key; fall back to a deterministic index-based id so
+              // identity never collides even when request_key is missing.
+              var rowId = (r.request_key !== undefined && r.request_key !== "")
+                ? String(r.request_key)
+                : (key + ":" + (page * PAGE_SIZE + i));
+              da = ' data-row-id="' + escAttr(rowId) + '"'
+                + ' data-headers="' + escAttr(JSON.stringify(ep)) + '"';
+            }
+          }
+          html += "<tr" + da + ">" + cells + "</tr>";
+        }
+        tb.innerHTML = html;
+        if (expanded.size > 0) {
+          tb.querySelectorAll("tr[data-row-id]").forEach(function(row) {
+            if (expanded.has(row.dataset.rowId)) {
+              insertDetail(row);
+            }
+          });
+        }
+        buildPagination(key, rows.length, page);
+      }
+
+      var commandCols = [
+        {key: "msg_time"},
+        {key: "channel"},
+        {key: "command"},
+        {key: "type"}
+      ];
+      var requestCols = [
+        {key: "time"},
+        {key: "method"},
+        {key: "path"},
+        {key: "status"},
+        {key: "status_code"},
+        {key: "request_key"}
+      ];
+
+      function renderAll(data) {
+        updateStatusBar(data.backend, data.frontend, data.backend_since, data.frontend_since);
+        fillTable("tb-commands", data.commands || [], commandCols);
+        var combined = joinRequestsResponses(data.requests, data.responses);
+        fillTable("tb-requests", combined, requestCols, function(r) {
+          var rh = formatKV(r.req_headers);
+          var qp = formatKV(r.query_params);
+          var rsh = formatKV(r.resp_headers);
+          return (rh || qp || rsh) ? {rh: rh, qp: qp, rsh: rsh} : null;
+        });
+        document.getElementById("last-updated").textContent = "Last updated: " + new Date().toLocaleTimeString();
+      }
+
+      async function refresh() {
+        var data;
+        try {
+          data = await fetch("/_tcex/status").then(function(r) {
+            return r.json();
+          });
+        } catch(e) {
+          return;
+        }
+        if (!data) return;
+        lastData = data;
+        renderAll(data);
+      }
+
+      function pgNav(key, dir) {
+        pageState[key] = Math.max(0, pageState[key] + dir);
+        if (lastData) renderAll(lastData);
+      }
+
+      document.addEventListener("click", function(e) {
+        var row = e.target.closest("tr[data-headers]");
+        if (!row) return;
+        var next = row.nextElementSibling;
+        if (next && next.classList.contains("header-detail")) {
+          next.remove();
+          return;
+        }
+        insertDetail(row);
+      });
+
+      document.addEventListener("input", function(e) {
+        if (!e.target.matches("input[type=search]")) return;
+        var key = e.target.id.slice(3);
+        pageState[key] = 0;
+        if (lastData) renderAll(lastData);
+      });
+
+      setInterval(refresh, 1000);
+      refresh();
+    </script>
+  </body>
+</html>

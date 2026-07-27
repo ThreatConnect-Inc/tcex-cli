@@ -11,6 +11,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 
+from tcex_cli.cli.run.frontend_watcher import FrontendWatcher
 from tcex_cli.cli.run.launch_service_common_abc import LaunchServiceCommonABC
 from tcex_cli.cli.run.model.app_api_service_model import AppApiInputModel
 from tcex_cli.cli.run.request_handler_api import RequestHandlerApi
@@ -21,13 +22,19 @@ from tcex_cli.pleb.cached_property import cached_property
 class LaunchServiceApi(LaunchServiceCommonABC):
     """Launch an App"""
 
-    def __init__(self, config_json: Path):
+    def __init__(
+        self,
+        config_json: Path,
+        watch_backend: bool = False,
+        frontend_watcher: FrontendWatcher | None = None,
+    ):
         """Initialize instance properties."""
-        super().__init__(config_json)
+        super().__init__(config_json, watch_backend=watch_backend)
 
         # properties
-        self.request_data = []
-        self.response_data = []
+        self.frontend_watcher = frontend_watcher
+        self.request_data: list[dict] = []
+        self.response_data: list[dict] = []
 
     def _format_key_value(self, key_value: list[dict]) -> str:
         """Return a formatted key value pair."""
@@ -35,6 +42,23 @@ class LaunchServiceApi(LaunchServiceCommonABC):
         for kv in key_value:
             key_value_ += f'{kv.get("name")}: [{self.accent}]{kv.get("value")}[/]\n'
         return key_value_
+
+    def _status_provider(self) -> dict:
+        """Return current dashboard state as a JSON-serializable dict."""
+        fw = self.frontend_watcher
+        return {
+            'commands': list(reversed(self.message_data[-200:])),
+            'requests': list(reversed(self.request_data[-200:])),
+            'responses': list(reversed(self.response_data[-200:])),
+            'backend': self._backend_status,
+            'backend_since': (
+                int(self._backend_since.timestamp() * 1000) if self._backend_since else None
+            ),
+            'frontend': fw.status if fw else None,
+            'frontend_since': (
+                int(fw.status_since.timestamp() * 1000) if fw and fw.status_since else None
+            ),
+        }
 
     @cached_property
     def api_web_server(self) -> WebServer:
@@ -46,6 +70,7 @@ class LaunchServiceApi(LaunchServiceCommonABC):
             self.redis_client,
             RequestHandlerApi,
             self.tc_token,
+            status_provider=self._status_provider,
         )
 
     @cached_property
@@ -224,7 +249,7 @@ class LaunchServiceApi(LaunchServiceCommonABC):
 
         self.event.set()
 
-    def setup(self, debug: bool = False):
+    def setup(self, debug: bool = False, live_display: bool = False) -> None:
         """Configure the API Web Server."""
         # setup web server
         self.api_web_server.setup()
@@ -246,8 +271,8 @@ class LaunchServiceApi(LaunchServiceCommonABC):
             topics=[self.model.inputs.tc_svc_server_topic],
         )
 
-        # start live display
-        if debug is False:
+        # start live display (opt-in; disabled by default in favor of the web dashboard)
+        if live_display and not debug:
             self.display_thread = Thread(
                 target=self.live_data_display, name='LiveDataDisplay', daemon=True
             )

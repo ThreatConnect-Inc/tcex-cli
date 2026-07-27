@@ -16,13 +16,13 @@ from tcex_cli.pleb.cached_property import cached_property
 class LaunchServiceCommonABC(LaunchABC, ABC):
     """Launch Class for all Service type Apps."""
 
-    def __init__(self, config_json: Path):
+    def __init__(self, config_json: Path, watch_backend: bool = False):
         """Initialize instance properties."""
-        super().__init__(config_json)
+        super().__init__(config_json, watch_backend=watch_backend)
 
         # properties
         self.event = Event()
-        self.display_thread: Thread
+        self.display_thread: Thread | None = None
         self.message_data: list[dict[str, str]] = []
         self.stop_server = False
 

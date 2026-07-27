@@ -1,5 +1,6 @@
 """TcEx Framework Module"""
 
+from pathlib import Path
 from threading import Thread
 
 from rich.console import Console
@@ -13,6 +14,10 @@ from tcex_cli.pleb.cached_property import cached_property
 
 class LaunchServiceCustomTrigger(LaunchServiceCommonTriggersABC):
     """Launch an App"""
+
+    def __init__(self, config_json: Path, watch_backend: bool = False):
+        """Initialize instance properties."""
+        super().__init__(config_json, watch_backend=watch_backend)
 
     @cached_property
     def model(self) -> AppTriggerInputModel:

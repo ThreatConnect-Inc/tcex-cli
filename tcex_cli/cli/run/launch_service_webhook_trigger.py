@@ -1,5 +1,6 @@
 """TcEx Framework Module"""
 
+from pathlib import Path
 from threading import Thread
 
 from rich.console import Console
@@ -7,6 +8,7 @@ from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
 
+from tcex_cli.cli.run.frontend_watcher import FrontendWatcher
 from tcex_cli.cli.run.launch_service_common_trigger_abc import LaunchServiceCommonTriggersABC
 from tcex_cli.cli.run.model.app_webhook_trigger_service_model import AppWebhookTriggerInputModel
 from tcex_cli.cli.run.request_handler_webhook import RequestHandlerWebhook
@@ -16,6 +18,35 @@ from tcex_cli.pleb.cached_property import cached_property
 
 class LaunchServiceWebhookTrigger(LaunchServiceCommonTriggersABC):
     """Launch an App"""
+
+    def __init__(
+        self,
+        config_json: Path,
+        watch_backend: bool = False,
+        frontend_watcher: FrontendWatcher | None = None,
+    ):
+        """Initialize instance properties."""
+        super().__init__(config_json, watch_backend=watch_backend)
+
+        # properties
+        self.frontend_watcher = frontend_watcher
+
+    def _status_provider(self) -> dict:
+        """Return current dashboard state as a JSON-serializable dict."""
+        fw = self.frontend_watcher
+        return {
+            'commands': list(reversed(self.message_data[-200:])),
+            'requests': [],
+            'responses': [],
+            'backend': self._backend_status,
+            'backend_since': (
+                int(self._backend_since.timestamp() * 1000) if self._backend_since else None
+            ),
+            'frontend': fw.status if fw else None,
+            'frontend_since': (
+                int(fw.status_since.timestamp() * 1000) if fw and fw.status_since else None
+            ),
+        }
 
     @cached_property
     def api_web_server(self) -> WebServer:
@@ -27,6 +58,7 @@ class LaunchServiceWebhookTrigger(LaunchServiceCommonTriggersABC):
             self.redis_client,
             RequestHandlerWebhook,
             self.tc_token,
+            status_provider=self._status_provider,
         )
 
     @cached_property
@@ -85,7 +117,7 @@ class LaunchServiceWebhookTrigger(LaunchServiceCommonTriggersABC):
             title_align='left',
         )
 
-    def setup(self, debug: bool = False):
+    def setup(self, debug: bool = False, live_display: bool = False) -> None:
         """Configure the API Web Server."""
         # setup web server
         self.api_web_server.setup()
@@ -107,8 +139,8 @@ class LaunchServiceWebhookTrigger(LaunchServiceCommonTriggersABC):
             topics=[self.model.inputs.tc_svc_server_topic],
         )
 
-        # start live display
-        if debug is False:
+        # start live display (opt-in; disabled by default in favor of the web dashboard)
+        if live_display and not debug:
             self.display_thread = Thread(
                 target=self.live_data_display, name='LiveDataDisplay', daemon=True
             )

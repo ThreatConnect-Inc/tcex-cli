@@ -5,14 +5,21 @@ import os
 import sys
 from pathlib import Path
 
+from rich.markup import escape
+
 from tcex_cli.app.config.install_json import InstallJson
 from tcex_cli.cli.cli_abc import CliABC
+from tcex_cli.cli.run.frontend_watcher import FrontendWatcher
 from tcex_cli.cli.run.launch_organization import LaunchOrganization
 from tcex_cli.cli.run.launch_playbook import LaunchPlaybook
 from tcex_cli.cli.run.launch_service_api import LaunchServiceApi
 from tcex_cli.cli.run.launch_service_custom_trigger import LaunchServiceCustomTrigger
 from tcex_cli.cli.run.launch_service_webhook_trigger import LaunchServiceWebhookTrigger
-from tcex_cli.cli.run.model.app_api_service_model import AppApiServiceModel
+from tcex_cli.cli.run.model.app_api_service_model import (
+    API_SERVICE_HOST_DEFAULT,
+    API_SERVICE_PORT_DEFAULT,
+    AppApiServiceModel,
+)
 from tcex_cli.cli.run.model.app_webhook_trigger_service_model import AppWebhookTriggerServiceModel
 from tcex_cli.render.render import Render
 
@@ -34,19 +41,22 @@ class RunCli(CliABC):
         # set os environment variables
         os.environ['TCEX_RUN_LOCAL'] = '1'
 
-    def _display_api_settings(self, api_inputs: AppApiServiceModel | AppWebhookTriggerServiceModel):
-        """Display API settings."""
-        Render.panel.info(
-            (
-                'Current API Service Settings:\n'
-                f'host: [{self.accent}]{api_inputs.api_service_host}[/{self.accent}]\n'
-                f'port: [{self.accent}]{api_inputs.api_service_port}[/{self.accent}]\n\n'
-                'API default settings can be overridden with these environment variables:\n'
-                f'  - [{self.accent}]API_SERVICE_HOST[/{self.accent}]\n'
-                f'  - [{self.accent}]API_SERVICE_PORT[/{self.accent}]'
-            ),
-            'API Settings',
+    def _display_api_settings(
+        self,
+        api_inputs: AppApiServiceModel | AppWebhookTriggerServiceModel,
+    ) -> None:
+        """Display API settings panel."""
+        content = (
+            'Current API Service Settings:\n'
+            f'host: [{self.accent}]{api_inputs.api_service_host}[/{self.accent}]\n'
+            f'port: [{self.accent}]{api_inputs.api_service_port}[/{self.accent}]\n\n'
+            'API default settings can be overridden with these environment variables:\n'
+            f'  - [{self.accent}]API_SERVICE_HOST[/{self.accent}]'
+            f'  (default: {API_SERVICE_HOST_DEFAULT})\n'
+            f'  - [{self.accent}]API_SERVICE_PORT[/{self.accent}]'
+            f'  (default: {API_SERVICE_PORT_DEFAULT})'
         )
+        Render.panel.info(content, 'API Settings')
 
     def _validate_in_app_directory(self):
         """Return True if in App directory."""
@@ -143,35 +153,95 @@ class RunCli(CliABC):
             'or add a config under app_inputs.d/.'
         )
 
-    def run(self, config_json: Path | None, debug: bool = False):
+    def _display_running_info(
+        self,
+        inputs: AppApiServiceModel | AppWebhookTriggerServiceModel,
+    ) -> None:
+        """Print a static summary panel when the live display TUI is disabled."""
+        from importlib.metadata import PackageNotFoundError  # noqa: PLC0415
+        from importlib.metadata import version as pkg_version  # noqa: PLC0415
+
+        try:
+            tcex_ver = pkg_version('tcex')
+        except PackageNotFoundError:
+            tcex_ver = 'not installed'
+
+        server_url = f'http://{inputs.api_service_host}:{inputs.api_service_port}'
+        dashboard_url = f'{server_url}/_tcex/'
+        tc_instance = escape(str(inputs.tc_api_path))
+        app_name = escape(str(self.ij.model.display_name))
+        app_version = escape(str(self.ij.model.program_version))
+
+        content = (
+            f'App:          [{self.accent}]{app_name}[/{self.accent}] v{app_version}\n'
+            f'TcEx:         [{self.accent}]{tcex_ver}[/{self.accent}]\n'
+            f'TC Instance:  [{self.accent}]{tc_instance}[/{self.accent}]\n'
+            f'Server:       [{self.accent}]{server_url}[/{self.accent}]\n'
+            f'Dashboard:    [{self.accent}]{dashboard_url}[/{self.accent}]'
+        )
+        Render.panel.info(content, f'[{self.panel_title}]Running[/]')
+
+    def run(
+        self,
+        config_json: Path | None,
+        debug: bool = False,
+        *,
+        watch_backend: bool = False,
+        watch_frontend: bool = False,
+        ui_configuration: str = 'production',
+        live_display: bool = False,
+    ):
         """Run the App"""
+        # start the Angular frontend watcher if requested
+        frontend_watcher: FrontendWatcher | None = None
+        if watch_frontend:
+            frontend_watcher = FrontendWatcher(Path.cwd(), configuration=ui_configuration)
+            frontend_watcher.start()
+
         # resolve the config to use (single owner of resolution)
         resolved = self.resolve_config(config_json)
+
+        # --watch-backend only applies to long-running service Apps.  Playbook and Organization
+        # Apps exit after a single run; watch mode would loop them without benefit.
+        _short_lived = {'playbook', 'organization', 'system'}
+        if watch_backend and self.ij.model.runtime_level.lower() in _short_lived:
+            Render.panel.warning(
+                f'--watch-backend is not supported for '
+                f'{self.ij.model.runtime_level} Apps (they exit after each run). '
+                'Continuing without file-watching.'
+            )
+            watch_backend = False
 
         match self.ij.model.runtime_level.lower():
             case 'apiservice':
                 Render.panel.info('Launching API Service', f'[{self.panel_title}]Running App[/]')
-                launch_app = LaunchServiceApi(resolved)
+                launch_app = LaunchServiceApi(
+                    resolved, watch_backend=watch_backend, frontend_watcher=frontend_watcher
+                )
                 self._display_api_settings(launch_app.model.inputs)
-                launch_app.setup(debug)
+                if not live_display:
+                    self._display_running_info(launch_app.model.inputs)
+                launch_app.setup(debug, live_display=live_display)
                 exit_code = launch_app.launch()
 
             case 'feedapiservice':
                 Render.panel.info(
                     'Launching Feed API Service', f'[{self.panel_title}]Running App[/]'
                 )
-                launch_app = LaunchServiceApi(resolved)
-                launch_app.setup(debug)
+                launch_app = LaunchServiceApi(
+                    resolved, watch_backend=watch_backend, frontend_watcher=frontend_watcher
+                )
+                launch_app.setup(debug, live_display=live_display)
                 exit_code = launch_app.launch()
 
             case 'organization' | 'system':
                 Render.panel.info('Launching Job App', f'[{self.panel_title}]Running App[/]')
-                launch_app = LaunchOrganization(resolved)
+                launch_app = LaunchOrganization(resolved, watch_backend=watch_backend)
                 exit_code = launch_app.launch()
                 launch_app.print_input_data()
 
             case 'playbook':
-                launch_app = LaunchPlaybook(resolved)
+                launch_app = LaunchPlaybook(resolved, watch_backend=watch_backend)
                 launch_app.validate_inputs()
                 launch_app.stage()
                 exit_code = launch_app.launch()
@@ -182,7 +252,7 @@ class RunCli(CliABC):
                 Render.panel.info(
                     'Launching Trigger Service', f'[{self.panel_title}]Running App[/]'
                 )
-                launch_app = LaunchServiceCustomTrigger(resolved)
+                launch_app = LaunchServiceCustomTrigger(resolved, watch_backend=watch_backend)
                 launch_app.setup(debug)
                 exit_code = launch_app.launch()
 
@@ -190,9 +260,13 @@ class RunCli(CliABC):
                 Render.panel.info(
                     'Launching Webhook Trigger Service', f'[{self.panel_title}]Running App[/]'
                 )
-                launch_app = LaunchServiceWebhookTrigger(resolved)
+                launch_app = LaunchServiceWebhookTrigger(
+                    resolved, watch_backend=watch_backend, frontend_watcher=frontend_watcher
+                )
                 self._display_api_settings(launch_app.model.inputs)
-                launch_app.setup(debug)
+                if not live_display:
+                    self._display_running_info(launch_app.model.inputs)
+                launch_app.setup(debug, live_display=live_display)
                 exit_code = launch_app.launch()
 
             case _:
