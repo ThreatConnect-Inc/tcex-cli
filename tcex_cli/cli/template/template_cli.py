@@ -64,6 +64,10 @@ class TemplateCli(CliABC):
         _github_user = os.getenv('TCEX_TEMPLATE_GITHUB_USER', _default_github_user)
         self.accent = 'dark_orange'
         self.base_url = f'https://api.github.com/repos/{_github_user}/tcex-app-templates'
+        # raw.githubusercontent.com serves file content at an arbitrary ref. It is a
+        # separate host from the REST API and does NOT consume the api.github.com
+        # rate limit, so per-file base lookups here are effectively free.
+        self.raw_url = f'https://raw.githubusercontent.com/{_github_user}/tcex-app-templates'
         self.errors = False
 
         # optional GitHub auth (for private forks or to avoid rate limits)
@@ -185,6 +189,8 @@ class TemplateCli(CliABC):
         force: bool = False,
         app_builder: bool = False,
         managed: bool = False,
+        safe: bool = False,
+        plan_out: Path | None = None,
     ):
         """Update (or initialize) a project with the latest template files.
 
@@ -203,6 +209,11 @@ class TemplateCli(CliABC):
         When ``managed`` is set, the run is silent and non-interactive: only
         template-managed (boilerplate) files are updated, all other files are
         left untouched, and nothing is deleted.
+
+        With ``safe`` set, files you have not modified are updated as usual,
+        but files you have modified are left untouched and recorded in a plan
+        file along with the template version you last synced, so a separate
+        step can perform a three-way merge.
         """
         # resolve from tcex.json if not provided
         _template_name = template_name or self.app.tj.model.template_name
@@ -245,6 +256,11 @@ class TemplateCli(CliABC):
         try:
             self._migrate_legacy_manifest(merged_dir, Path.cwd())
 
+            # capture the pre-update manifest before it is overwritten below — it
+            # records which template version each local file was last synced from,
+            # which is what --safe needs to locate the three-way merge base.
+            local_meta = self.manifest_store.load_json(Path.cwd() / 'manifest.json')
+
             plan = self.planner.build(
                 merged_dir,
                 Path.cwd(),
@@ -256,23 +272,220 @@ class TemplateCli(CliABC):
             def _prompt_fn(msg: str) -> str:
                 return Render.prompt.ask(msg, choices=['y', 'N'], default='N') or 'N'
 
+            # in safe mode every conflict is declined, so nothing modified is touched
+            # and nothing is prompted. auto-update files still apply normally.
             self.planner.apply(
                 plan,
                 template_root=merged_dir,
                 project_root=Path.cwd(),
                 force=force,
-                prompt_fn=_prompt_fn,
+                prompt_fn=(lambda _: 'N') if safe else _prompt_fn,
             )
+
+            deferred: list[tuple] = plan.prompt_user if safe else []
+
+            if safe:
+                self._write_safe_plan(
+                    plan,
+                    merged_dir=merged_dir,
+                    project_root=Path.cwd(),
+                    local_meta=local_meta,
+                    plan_out=Path(plan_out or '.tcex-update/plan.json'),
+                    branch=branch,
+                    template_name=str(_template_name),
+                    template_type=str(_template_type),
+                    parents=self.resolve_template_parents(
+                        cache_dir, str(_template_name), str(_template_type)
+                    ),
+                )
 
             # copy manifest.json to project root so future updates can compare
             merged_manifest = merged_dir / 'manifest.json'
             if merged_manifest.is_file():
-                shutil.copy2(str(merged_manifest), str(Path.cwd() / 'manifest.json'))
+                self._write_project_manifest(
+                    merged_manifest, Path.cwd() / 'manifest.json', local_meta, deferred
+                )
 
             # ensure tcex.json exists with correct template values
             self._ensure_tcex_json(cache_dir, _template_name, _template_type)
         finally:
             shutil.rmtree(merged_dir, ignore_errors=True)
+
+    # ==================================================================
+    # Safe Mode (--safe)
+    #
+    # Applies only non-conflicting updates, then records every file the
+    # user has modified into a plan file alongside the three versions a
+    # merge needs:
+    #   base   - the template file as of the last sync (fetched by ref)
+    #   theirs - the template file now
+    #   ours   - the file currently in the project
+    # ==================================================================
+
+    def _write_project_manifest(
+        self,
+        merged_manifest: Path,
+        dest: Path,
+        local_meta: dict,
+        deferred: list[tuple],
+    ) -> None:
+        """Write the project manifest, preserving entries for deferred conflicts.
+
+        A deferred file was NOT updated, so stamping it with the new template's
+        ``last_commit`` would make the next run believe it is already in sync and
+        skip it — silently dropping the template change forever. Those keys keep
+        their previous entry so the conflict resurfaces until it is resolved.
+        """
+        meta = self.manifest_store.load_json(merged_manifest)
+
+        for key, _template_path in deferred:
+            if key in local_meta:
+                meta[key] = local_meta[key]
+            else:
+                meta.pop(key, None)
+
+        with dest.open('w', encoding='utf-8') as fh:
+            json.dump(meta, fh, indent=2, sort_keys=True)
+            fh.write('\n')
+
+    @staticmethod
+    def _source_path_candidates(
+        key: str, entry_meta: dict, template_type: str, parents: list[str]
+    ) -> list[str]:
+        """Return repo-relative paths to try when fetching *key* at an older ref.
+
+        Manifests written by a current CLI carry ``source_path`` (the exact repo
+        path), so there is a single candidate. Manifests written before that field
+        existed only have the project-relative path, so fall back to walking the
+        parent chain leaf-first — the same precedence the merge itself uses.
+        """
+        source_path = entry_meta.get('source_path')
+        if source_path:
+            return [source_path]
+
+        candidates = []
+        for parent in reversed(parents):
+            prefix = '_app_common' if parent == '_app_common' else f'{template_type}/{parent}'
+            candidates.append(f'{prefix}/{key}')
+        return candidates
+
+    def _fetch_base_file(self, candidates: list[str], ref: str, dest: Path) -> bool:
+        """Fetch a template file at a specific git ref into *dest*.
+
+        Uses raw.githubusercontent.com rather than the REST API — it serves the
+        same content but does not consume the api.github.com rate limit, so this
+        stays cheap even with many conflicts. Only conflicted files are fetched.
+
+        Returns True on success. Any failure returns False so the caller can fall
+        back to a two-way merge rather than aborting the whole update.
+        """
+        if not ref or ref == 'legacy_migrated':
+            return False
+
+        for template_path in candidates:
+            url = f'{self.raw_url}/{ref}/{template_path}'
+            try:
+                r = self.session.get(url, timeout=10)
+                if not r.ok:
+                    continue
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(r.content)
+            except Exception:
+                self.log.exception(f'action=fetch-base, url={url}')
+                continue
+            return True
+
+        self.log.warning(
+            f'action=fetch-base, ref={ref}, candidates={candidates}, '
+            f'message=base unavailable, merge will be two-way'
+        )
+        return False
+
+    def _write_safe_plan(
+        self,
+        plan,
+        merged_dir: Path,
+        project_root: Path,
+        local_meta: dict,
+        plan_out: Path,
+        branch: str,
+        template_name: str,
+        template_type: str,
+        parents: list[str],
+    ) -> None:
+        """Write the plan file describing every deferred conflict.
+
+        Materializes ``base`` (fetched by ref) and ``theirs`` (copied out of the
+        merged template) next to the plan, because the merged directory is a temp
+        dir that is removed as soon as this command exits.
+        """
+        out_dir = plan_out.parent
+        removed_keys = {key for key, _ in plan.template_removed}
+        merged_meta = self.manifest_store.load_json(merged_dir / 'manifest.json')
+
+        conflicts = []
+        for key, template_path in sorted(plan.prompt_user):
+            entry_meta = local_meta.get(key, {})
+            ref = entry_meta.get('last_commit', '')
+
+            base_path = out_dir / 'base' / key
+            has_base = self._fetch_base_file(
+                self._source_path_candidates(key, entry_meta, template_type, parents),
+                ref,
+                base_path,
+            )
+
+            # 'theirs' only exists for updates; a removal has no new version
+            theirs_path = None
+            if key not in removed_keys:
+                src = merged_dir / template_path
+                if src.is_file():
+                    theirs_path = out_dir / 'theirs' / key
+                    theirs_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(str(src), str(theirs_path))
+
+            conflicts.append(
+                {
+                    'key': key,
+                    'action': 'remove' if key in removed_keys else 'update',
+                    'template_path': template_path,
+                    'merge': 'three_way' if has_base else 'two_way',
+                    # all three paths are relative to project_root so the plan stays
+                    # valid if the project is moved or read from another machine
+                    'base': {
+                        'ref': ref,
+                        'path': base_path.as_posix() if has_base else None,
+                        'sha256': entry_meta.get('sha256'),
+                    },
+                    'theirs': {'path': theirs_path.as_posix() if theirs_path else None},
+                    'ours': {'path': key},
+                    # written back into manifest.json by whoever resolves this file,
+                    # so the next update sees it as in sync
+                    'resolved_manifest_entry': merged_meta.get(key),
+                }
+            )
+
+        document = {
+            'schema_version': 1,
+            'template': {'name': template_name, 'type': template_type, 'branch': branch},
+            'project_root': str(project_root),
+            'manifest_path': 'manifest.json',
+            'applied': {
+                'auto_update': [k for k, _ in plan.auto_update],
+                'template_new': [k for k, _ in plan.template_new],
+                'template_removed': [k for k, _ in plan.template_removed],
+            },
+            'conflicts': conflicts,
+        }
+
+        plan_out.parent.mkdir(parents=True, exist_ok=True)
+        with plan_out.open('w', encoding='utf-8') as fh:
+            json.dump(document, fh, indent=2, sort_keys=True)
+            fh.write('\n')
+
+        Render.panel.info(
+            f'Deferred [{self.accent}]{len(conflicts)}[/] modified file(s) to {plan_out}'
+        )
 
     def _ensure_tcex_json(self, cache_dir: Path, template_name: str, template_type: str) -> None:
         """Ensure tcex.json exists with correct template_name and template_type.
@@ -362,7 +575,7 @@ class TemplateCli(CliABC):
         """
         url = f'{self.base_url}/commits/{branch}'
         try:
-            r = self.session.get(url)
+            r = self.session.get(url, timeout=5)
             if not r.ok:
                 self.log.error(
                     f'action=remote-commit-date, url={r.request.url}, '
@@ -393,7 +606,7 @@ class TemplateCli(CliABC):
         # stream the zipball to a temp file
         with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tmp_zip:
             tmp_zip_path = Path(tmp_zip.name)
-            with self.session.get(url, stream=True) as r:
+            with self.session.get(url, stream=True, timeout=30) as r:
                 r.raise_for_status()
                 for chunk in r.iter_content(chunk_size=1024 * 1024):
                     if chunk:
@@ -480,10 +693,9 @@ class TemplateCli(CliABC):
                 )
                 continue
 
-            # load this parent's manifest.json solely to source the per-file
-            # ``managed`` flag — last_commit/sha256 are still re-hashed from the
-            # copied file (see below), so stale manifest entries can't leak in.
-            # re-read per parent so a child parent's flags override a parent's.
+            # load this parent's manifest.json (generated by the template
+            # repo's post-commit hook — contains correct git commit SHAs
+            # and the per-file ``managed`` flag)
             parent_manifest: dict = {}
             with contextlib.suppress(Exception):
                 parent_manifest = json.loads(
@@ -493,9 +705,6 @@ class TemplateCli(CliABC):
                 parent_manifest = {}
 
             # copy files from this parent (child overwrites parent)
-            # manifest is built purely from copied files — no pre-loading
-            # of parent manifests, which can contain stale entries for
-            # files excluded by skip_names or app_builder filtering
             for src_file in src_dir.rglob('*'):
                 if not src_file.is_file():
                     continue
@@ -513,7 +722,8 @@ class TemplateCli(CliABC):
                 # template repos store gitignore without the dot to avoid
                 # GitHub ignoring the file — rename it for the project
                 parts = list(rel.parts)
-                if parts[-1] == 'gitignore':
+                renamed_gitignore = parts[-1] == 'gitignore'
+                if renamed_gitignore:
                     parts[-1] = '.gitignore'
                     rel = Path(*parts)
 
@@ -521,20 +731,42 @@ class TemplateCli(CliABC):
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(str(src_file), str(dest))
 
-                # re-hash after each copy because a child may overwrite a
-                # parent file, so the manifest must reflect the final content
+                # merge manifest entry from parent — child entries
+                # overwrite parent entries naturally via iteration order.
+                # use rel_key for template_path (project-relative), not the
+                # prefixed path from the parent's manifest.
                 rel_key = str(rel)
-                file_hash = self.hasher.sha256_file(dest)
-                # ``managed`` is sourced from the parent manifest (default False);
-                # last_commit/sha256 stay re-hashed from the copied file. For the
-                # renamed gitignore, rel_key is '.gitignore', which matches the
-                # parent manifest's '.gitignore' entry (managed: true).
-                merged_manifest[rel_key] = {
-                    'last_commit': file_hash or '',
-                    'sha256': file_hash or '',
-                    'template_path': rel_key,
-                    'managed': bool(parent_manifest.get(rel_key, {}).get('managed', False)),
-                }
+                parent_entry = parent_manifest.get(rel_key)
+                if renamed_gitignore:
+                    # the dot-less `gitignore` was renamed to `.gitignore`; the
+                    # parent manifest's `.gitignore` key (if any) describes a
+                    # different, stray file. compute sha256 from the file we
+                    # actually wrote so the manifest matches the content on disk.
+                    merged_manifest[rel_key] = {
+                        'last_commit': (parent_entry['last_commit'] if parent_entry else 'unknown'),
+                        'sha256': self.hasher.sha256_file(dest),
+                        'template_path': rel_key,
+                        'managed': bool(parent_entry.get('managed', False))
+                        if parent_entry
+                        else False,
+                    }
+                elif parent_entry:
+                    merged_manifest[rel_key] = {
+                        'last_commit': parent_entry['last_commit'],
+                        'sha256': parent_entry['sha256'],
+                        'template_path': rel_key,
+                        'managed': bool(parent_entry.get('managed', False)),
+                        # repo-relative origin (e.g. "tie/basic/core/pipeline.py").
+                        # template_path above is flattened to the project-relative
+                        # path, which loses which template dir the file came from —
+                        # needed to fetch this file at an older ref.
+                        'source_path': parent_entry.get('template_path', rel_key),
+                    }
+                else:
+                    self.log.warning(
+                        f'action=build-merged-template, file={rel_key}, '
+                        f'parent={parent_name}, message=no manifest entry found'
+                    )
 
         # write the combined manifest to the merged dir
         manifest_out = merged_dir / 'manifest.json'
@@ -658,10 +890,12 @@ class TemplateCli(CliABC):
                 # in sync with current template — Planner will skip
                 local_manifest[key] = entry
             else:
-                # differs — dummy last_commit forces hash-comparison path
+                # differs — dummy last_commit forces hash-comparison path;
+                # store the template's sha256 (not local) so the planner can
+                # distinguish "user never touched this" from "user modified it"
                 local_manifest[key] = {
                     'last_commit': 'legacy_migrated',
-                    'sha256': local_hash,
+                    'sha256': entry['sha256'],
                     'template_path': entry['template_path'],
                 }
 

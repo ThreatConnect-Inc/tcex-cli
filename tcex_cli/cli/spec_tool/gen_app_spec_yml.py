@@ -32,7 +32,7 @@ class GenAppSpecYml(CliABC):
                 'deprecatesApps': self.app.ij.model.deprecates_apps or [],
                 'displayName': self.app.ij.model.display_name,
                 'features': self.app.ij.model.features,
-                'labels': self.app.ij.model.labels or [],
+                'labels': sorted([lbl.lower() for lbl in (self.app.ij.model.labels or [])]),
                 'languageVersion': self.app.ij.model.language_version,
                 'listDelimiter': self.app.ij.model.list_delimiter,
                 'minServerVersion': str(self.app.ij.model.min_server_version),

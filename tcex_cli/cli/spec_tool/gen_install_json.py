@@ -34,7 +34,7 @@ class GenInstallJson(CliABC):
                 'deprecatesApps': self.asy.model.deprecates_apps or [],
                 'displayName': self.asy.model.display_name,
                 'features': self.asy.model.features,
-                'labels': self.asy.model.labels or [],
+                'labels': sorted([lbl.lower() for lbl in (self.asy.model.labels or [])]),
                 'languageVersion': self.asy.model.language_version,
                 'listDelimiter': self.asy.model.list_delimiter,
                 'minServerVersion': str(self.asy.model.min_server_version),
