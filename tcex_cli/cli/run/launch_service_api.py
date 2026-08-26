@@ -3,6 +3,7 @@
 # standard library
 import datetime
 import json
+import os
 from pathlib import Path
 from threading import Thread
 
@@ -250,7 +251,7 @@ class LaunchServiceApi(LaunchServiceCommonABC):
         )
 
         # start live display
-        if debug is False:
+        if debug is False and not os.environ.get('TCEX_NO_LIVE_DISPLAY'):
             self.display_thread = Thread(
                 target=self.live_data_display, name='LiveDataDisplay', daemon=True
             )
